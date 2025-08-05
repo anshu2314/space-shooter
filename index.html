@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Jet Shooter Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            min-height: 100vh;
+        }
+        .main-layout {
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: flex-start;
+            width: 100vw;
+            height: 100vh;
+        }
+        .game-container {
+            position: relative;
+            border: 3px solid #00ffff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            margin: 32px 0 32px 12px; /* reduced left margin */
+            background: #001a33;
+        }
+        #gameCanvas {
+            display: block;
+            background: linear-gradient(to bottom, #000428 0%, #004e92 100%);
+        }
+        .ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .health-bar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 200px;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ff6600, #ffff00, #00ff00);
+            transition: width 0.3s ease;
+        }
+
+        .score {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .boss-health {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 25px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #ff0000;
+            border-radius: 12px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .boss-health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ff6600, #ffff00);
+            transition: width 0.3s ease;
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffffff;
+            font-size: 48px;
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8);
+            display: none;
+        }
+
+        .restart-btn {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #00ff00, #00cc00);
+            border: none;
+            border-radius: 25px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            display: none;
+            pointer-events: auto;
+        }
+
+        .restart-btn:hover {
+            background: linear-gradient(45deg, #00cc00, #009900);
+            transform: translateX(-50%) translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: #ffffff;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        }
+        .special-ui {
+            position: absolute;
+            top: 0;
+            right: -130px;
+            width: 140px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 32px;
+            z-index: 20;
+            pointer-events: none;
+        }
+        .left-special { left: -130px; }
+        .right-special { right: -130px; }
+        .special-move {
+            background: rgba(30, 60, 90, 0.55);
+            border: 2.5px solid #00fff7cc;
+            border-radius: 22px;
+            box-shadow: 0 0 24px #00fff799, 0 2px 16px #0008;
+            width: 120px;
+            padding: 20px 10px 16px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: box-shadow 0.3s, border-color 0.3s, background 0.3s;
+            position: relative;
+            pointer-events: auto;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        .special-move.active {
+            box-shadow: 0 0 40px 10px #fff176, 0 0 24px #00fff7cc;
+            border-color: #fff176;
+            background: rgba(255, 255, 100, 0.18);
+            animation: special-glow 1s infinite alternate;
+        }
+        .special-move:hover {
+            border-color: #fff;
+            box-shadow: 0 0 32px 8px #00fff7, 0 0 16px #fff176;
+        }
+        @keyframes special-glow {
+            0% { box-shadow: 0 0 40px 10px #fff176, 0 0 24px #00fff7cc; }
+            100% { box-shadow: 0 0 60px 20px #fff176, 0 0 32px #00fff7cc; }
+        }
+        .special-icon {
+            font-size: 2.3rem;
+            margin-bottom: 7px;
+            filter: drop-shadow(0 0 8px #fff17688);
+        }
+        .special-name {
+            color: #fff;
+            font-size: 1.13rem;
+            font-weight: bold;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 4px #000a;
+        }
+        .special-cooldown {
+            color: #fff176;
+            font-size: 1.1rem;
+            font-weight: bold;
+            min-height: 1.2em;
+            margin-top: 2px;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 4px #000a;
+            position: relative;
+        }
+        .special-move:not(.active) .special-cooldown:not(:empty):not(:contains('Ready'))::after {
+            content: '';
+            display: block;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: 3px solid #fff17699;
+            border-top: 3px solid #00fff7cc;
+            animation: spin-cooldown 1s linear infinite;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+        }
+        @keyframes spin-cooldown {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        .special-legend {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 1.1rem;
+            background: rgba(0,0,0,0.4);
+            border-radius: 8px;
+            padding: 4px 18px;
+            letter-spacing: 1px;
+            z-index: 30;
+        }
+        .controls-info {
+            position: absolute;
+            left: 20px;
+            bottom: 18px;
+            color: #00fff7;
+            font-family: 'Fira Mono', 'Consolas', 'Menlo', 'monospace';
+            font-size: 1.13rem;
+            background: rgba(0,0,0,0.55);
+            border-radius: 8px;
+            padding: 7px 18px 7px 14px;
+            letter-spacing: 1px;
+            box-shadow: 0 2px 8px #00fff733;
+            z-index: 30;
+            font-weight: bold;
+        }
+        .controls-title {
+            color: #fff;
+            font-size: 1.08rem;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+            margin-right: 8px;
+        }
+        .controls-keys {
+            color: #fff176;
+            font-family: inherit;
+            font-size: 1.13rem;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+        }
+        @media (max-width: 1100px) {
+            .left-special, .right-special { display: none; }
+        }
+        .right-sidebar {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            margin-left: 18px;
+            margin-top: 32px;
+            gap: 18px;
+            min-width: 180px;
+            max-width: 210px;
+            max-height: 92vh;
+            overflow-y: auto;
+        }
+        .how-to-play-box {
+            background: rgba(30, 60, 90, 0.55);
+            border: 2.5px solid #00fff7cc;
+            border-radius: 18px;
+            box-shadow: 0 0 16px #00fff799, 0 2px 8px #0008;
+            padding: 12px 12px 10px 12px;
+            margin-bottom: 4px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .how-title {
+            color: #fff;
+            font-size: 1.13rem;
+            font-weight: bold;
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+        .how-list {
+            color: #fff176;
+            font-size: 0.98rem;
+            margin-left: 0;
+            padding-left: 14px;
+        }
+        .how-list li {
+            margin-bottom: 2px;
+        }
+        .special-move-sidebar {
+            background: rgba(30, 60, 90, 0.55);
+            border: 2.5px solid #00fff7cc;
+            border-radius: 18px;
+            box-shadow: 0 0 20px #00fff799, 0 2px 8px #0008;
+            width: 100%;
+            padding: 18px 6px 14px 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: box-shadow 0.3s, border-color 0.3s, background 0.3s;
+            position: relative;
+            pointer-events: auto;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        .special-move-sidebar.active {
+            box-shadow: 0 0 40px 10px #fff176, 0 0 24px #00fff7cc;
+            border-color: #fff176;
+            background: rgba(255, 255, 100, 0.18);
+            animation: special-glow 1s infinite alternate;
+        }
+        .special-move-sidebar:hover {
+            border-color: #fff;
+            box-shadow: 0 0 32px 8px #00fff7, 0 0 16px #fff176;
+        }
+        .special-icon {
+            font-size: 2.1rem;
+            margin-bottom: 6px;
+            filter: drop-shadow(0 0 8px #fff17688);
+        }
+        .special-name {
+            color: #fff;
+            font-size: 1.08rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 4px #000a;
+        }
+        .special-cooldown {
+            color: #fff176;
+            font-size: 1.05rem;
+            font-weight: bold;
+            min-height: 1.1em;
+            margin-top: 2px;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 4px #000a;
+            position: relative;
+        }
+        .special-move-sidebar:not(.active) .special-cooldown:not(:empty):not(:contains('Ready'))::after {
+            content: '';
+            display: block;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: 3px solid #fff17699;
+            border-top: 3px solid #00fff7cc;
+            animation: spin-cooldown 1s linear infinite;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+        }
+        @keyframes spin-cooldown {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        .controls-info-global {
+            position: fixed;
+            left: 24px;
+            bottom: 24px;
+            color: #00fff7;
+            font-family: 'Fira Mono', 'Consolas', 'Menlo', 'monospace';
+            font-size: 1.13rem;
+            background: rgba(0,0,0,0.55);
+            border-radius: 8px;
+            padding: 7px 18px 7px 14px;
+            letter-spacing: 1px;
+            box-shadow: 0 2px 8px #00fff733;
+            z-index: 200;
+            font-weight: bold;
+            min-width: 260px;
+        }
+        .controls-title {
+            color: #fff;
+            font-size: 1.08rem;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+            margin-right: 8px;
+        }
+        .controls-keys {
+            color: #fff176;
+            font-family: inherit;
+            font-size: 1.13rem;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+        }
+        @media (max-width: 1100px) {
+            .right-sidebar, .controls-info-global { display: none; }
+        }
+        .boost-bars {
+            position: absolute;
+            right: 32px;
+            bottom: 32px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+            z-index: 50;
+            pointer-events: none;
+        }
+        .boost-bar {
+            display: flex;
+            align-items: center;
+            background: rgba(10, 20, 40, 0.7);
+            border-radius: 12px;
+            padding: 6px 12px 6px 8px;
+            box-shadow: 0 2px 8px #0006;
+            min-width: 160px;
+            max-width: 220px;
+        }
+        .attack-bar {
+            border: 2px solid #ff1744;
+        }
+        .defense-bar {
+            border: 2px solid #2979ff;
+        }
+        .boost-label {
+            font-size: 1.3rem;
+            margin-right: 8px;
+        }
+        .boost-segments {
+            display: flex;
+            gap: 2px;
+            flex: 1;
+        }
+        .boost-segment {
+            width: 16px;
+            height: 22px;
+            border-radius: 4px;
+            background: #222b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .boost-segment.filled.attack {
+            background: linear-gradient(135deg, #ff1744 60%, #ff8a65 100%);
+            box-shadow: 0 0 8px #ff1744cc;
+            color: #fff;
+        }
+        .boost-segment.filled.defense {
+            background: linear-gradient(135deg, #2979ff 60%, #00e5ff 100%);
+            box-shadow: 0 0 8px #2979ffcc;
+            color: #fff;
+        }
+        .boost-float-text {
+            position: absolute;
+            right: 40px;
+            bottom: 80px;
+            color: #fff176;
+            font-size: 1.3rem;
+            font-weight: bold;
+            text-shadow: 0 2px 8px #000a;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        .level-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            padding: 20px 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .level-text {
+            color: #fff;
+            font-size: 3rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+        .level-tick {
+            font-size: 2rem;
+            color: #00ff00;
+            text-shadow: 0 0 8px #00ff00cc;
+        }
+        .combo-float {
+            position: absolute;
+            top: 100px; /* Adjust as needed */
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 255, 0, 0.8);
+            color: #fff;
+            font-size: 2rem;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .bonus-bar {
+            position: absolute;
+            top: 50px; /* Adjust as needed */
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 215, 0, 0.9); /* Gold color */
+            color: #000;
+            font-size: 1.8rem;
+            font-weight: bold;
+            padding: 10px 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            z-index: 10;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-layout">
+        <div class="game-container">
+            <canvas id="gameCanvas" width="1100" height="600"></canvas>
+            <div class="ui-overlay">
+                <div class="health-bar">
+                    <div class="health-fill" id="healthFill"></div>
+                </div>
+                <div class="score" id="score">Score: 0</div>
+                <div class="boss-health" id="bossHealth">
+                    <div class="boss-health-fill" id="bossHealthFill"></div>
+                </div>
+                <div class="game-over" id="gameOver">GAME OVER</div>
+                <button class="restart-btn" id="restartBtn">Restart Game</button>
+                <div class="instructions"></div>
+            </div>
+            <div id="controlModal" style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(10,20,40,0.95);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:25vh;backdrop-filter:blur(5px);">
+                <div style="color:#fff;font-size:2.5rem;margin-bottom:40px;text-align:center;text-shadow:0 2px 4px rgba(0,0,0,0.5);font-weight:bold;transform:translateY(-30px);">How do you want to play?</div>
+                <div style="display:flex;gap:30px;flex-wrap:wrap;justify-content:center;transform:translateY(40px);">
+                    <button id="keyboardBtn" style="padding:18px 45px;font-size:1.4rem;border-radius:12px;border:none;background:linear-gradient(135deg, #00bfff, #0077cc);color:#fff;font-weight:bold;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);transition:all 0.3s ease;text-transform:uppercase;letter-spacing:1px;">
+                        <span style="display:block;margin-bottom:5px;">⌨️</span>
+                        Keyboard
+                    </button>
+                    <button id="mouseBtn" style="padding:18px 45px;font-size:1.4rem;border-radius:12px;border:none;background:linear-gradient(135deg, #ff9800, #f57c00);color:#fff;font-weight:bold;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);transition:all 0.3s ease;text-transform:uppercase;letter-spacing:1px;">
+                        <span style="display:block;margin-bottom:5px;">🖱️</span>
+                        Mouse
+                    </button>
+                </div>
+            </div>
+            <!-- Boost Bars UI -->
+            <div class="boost-bars">
+                <div class="boost-bar attack-bar" id="attackBar">
+                    <span class="boost-label">🗡️</span>
+                    <div class="boost-segments" id="attackSegments"></div>
+                </div>
+                <div class="boost-bar defense-bar" id="defenseBar">
+                    <span class="boost-label">🛡️</span>
+                    <div class="boost-segments" id="defenseSegments"></div>
+                </div>
+                <div class="boost-float-text" id="boostFloatText"></div>
+            </div>
+            <div class="level-overlay" id="levelOverlay">
+                <div class="level-text" id="levelText"></div>
+                <div class="level-tick" id="levelTick">✅</div>
+            </div>
+            <div class="combo-float" id="comboFloat"></div>
+            <div class="bonus-bar" id="bonusBar">🎁 Bonus Round – Double Points!</div>
+        </div>
+        <div class="right-sidebar">
+            <div class="how-to-play-box">
+                <div class="how-title">How to play</div>
+                <ul class="how-list">
+                    <li>Move: <b>A/D/W/S</b> or <b>Arrow Keys</b> (or mouse if selected)</li>
+                    <li>Shoot: <b>Space</b> (or mouse click)</li>
+                    <li>Special Moves: <b>1</b> Beam, <b>2</b> Gaze Burst, <b>3</b> Nova Pulse</li>
+                    <li>Defeat enemies, survive, and beat the boss!</li>
+                </ul>
+            </div>
+            <div class="special-move-sidebar" id="beamMove">
+                <div class="special-icon">🔥</div>
+                <div class="special-name">Beam Attack</div>
+                <div class="special-cooldown" id="beamCooldown">Ready</div>
+            </div>
+            <div class="special-move-sidebar" id="gazeMove">
+                <div class="special-icon">💥</div>
+                <div class="special-name">Gaze Burst</div>
+                <div class="special-cooldown" id="gazeCooldown">Ready</div>
+            </div>
+            <div class="special-move-sidebar" id="novaMove">
+                <div class="special-icon">💫</div>
+                <div class="special-name">Nova Pulse</div>
+                <div class="special-cooldown" id="novaCooldown">Ready</div>
+            </div>
+        </div>
+    </div>
+    <div class="controls-info-global">
+        <span class="controls-title">Controls:</span><br>
+        <span class="controls-keys">[1] Beam   [2] Gaze Burst   [3] Nova Pulse</span>
+    </div>
+
+    <script src="java.js"></script>
+</body>
+</html>
