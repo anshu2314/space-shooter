@@ -2,6 +2,60 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+// Control mode declaration (moved to top to prevent initialization error)
+let controlMode = null; // 'keyboard', 'mouse', or 'mobile'
+
+// Mobile detection and setup
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+let touchControls = {
+    joystick: { x: 0, y: 0, active: false, centerX: 0, centerY: 0 },
+    shootButton: { active: false, x: 0, y: 0, radius: 40 },
+    specialButtons: { beam: false, gaze: false, nova: false }
+};
+
+// Canvas responsive setup
+function setupCanvas() {
+    const container = canvas.parentElement;
+    const containerRect = container.getBoundingClientRect();
+    
+    if (isMobile) {
+        // Mobile: use container size with max constraints
+        const maxWidth = Math.min(500, containerRect.width - 20);
+        const maxHeight = Math.min(400, window.innerHeight * 0.6);
+        
+        canvas.style.width = maxWidth + 'px';
+        canvas.style.height = maxHeight + 'px';
+        
+        // Set actual canvas dimensions (for crisp rendering)
+        canvas.width = maxWidth;
+        canvas.height = maxHeight;
+        
+        // Reset context scale
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+    } else {
+        // Desktop: use fixed size
+        canvas.width = 1100;
+        canvas.height = 600;
+        canvas.style.width = '1100px';
+        canvas.style.height = '600px';
+    }
+    
+    // Reinitialize touch controls after resize
+    if (controlMode === 'mobile') {
+        initializeTouchControls();
+    }
+}
+
+// Handle window resize
+window.addEventListener('resize', () => {
+    if (isMobile) {
+        setupCanvas();
+    }
+});
+
+// Initial setup
+setupCanvas();
+
 // Game State
 let gameRunning = true;
 let score = 0;
@@ -64,42 +118,18 @@ let explosions = [];
 let powerups = [];
 let boss = null;
 
-let controlMode = null; // 'keyboard' or 'mouse'
-
 // Bonus round state
 let bonusRoundActive = false;
 let bonusRoundTimer = 0;
 
-// Control selection modal logic
-const controlModal = document.getElementById('controlModal');
-const keyboardBtn = document.getElementById('keyboardBtn');
-const mouseBtn = document.getElementById('mouseBtn');
-const instructionsDiv = document.querySelector('.instructions');
-const restartBtn = document.getElementById('restartBtn');
-
-if (restartBtn) {
-    restartBtn.addEventListener('click', () => {
-        restartGame();
-    });
-}
-
-keyboardBtn.addEventListener('click', () => {
-    controlMode = 'keyboard';
-    controlModal.style.display = 'none';
-    instructionsDiv.textContent = 'Use A/D or ←/→ to move | SPACE to shoot';
-    restartGame();
-});
-
-mouseBtn.addEventListener('click', () => {
-    controlMode = 'mouse';
-    controlModal.style.display = 'none';
-    instructionsDiv.textContent = 'Move mouse to steer | Click or hold mouse to shoot';
-    restartGame();
-});
+// Control selection modal logic - will be initialized in DOMContentLoaded
+let controlModal, keyboardBtn, mouseBtn, mobileBtn, instructionsDiv, restartBtn;
 
 // Input handling
 const keys = {};
 let mouseShooting = false;
+let mouseShootingX = 0;
+let mouseShootingY = 0;
 
 // Keyboard controls
 function setupKeyboardControls() {
@@ -156,6 +186,139 @@ function mouseUpHandler(e) {
     player.shooting = false;
 }
 
+// Mobile touch controls
+function setupMobileControls() {
+    canvas.addEventListener('touchstart', touchStartHandler, { passive: false });
+    canvas.addEventListener('touchmove', touchMoveHandler, { passive: false });
+    canvas.addEventListener('touchend', touchEndHandler, { passive: false });
+    canvas.addEventListener('touchcancel', touchEndHandler, { passive: false });
+    
+    // Prevent default touch behaviors
+    canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+    canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+    
+    // Initialize touch control positions
+    initializeTouchControls();
+}
+
+function removeMobileControls() {
+    canvas.removeEventListener('touchstart', touchStartHandler);
+    canvas.removeEventListener('touchmove', touchMoveHandler);
+    canvas.removeEventListener('touchend', touchEndHandler);
+    canvas.removeEventListener('touchcancel', touchEndHandler);
+}
+
+function initializeTouchControls() {
+    const rect = canvas.getBoundingClientRect();
+    
+    // Joystick position (bottom left)
+    touchControls.joystick.centerX = 80;
+    touchControls.joystick.centerY = canvas.height - 80;
+    
+    // Shoot button position (bottom right)
+    touchControls.shootButton.x = canvas.width - 80;
+    touchControls.shootButton.y = canvas.height - 80;
+}
+
+function touchStartHandler(e) {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    const touchX = touch.clientX - rect.left;
+    const touchY = touch.clientY - rect.top;
+    
+    // Convert to canvas coordinates
+    const canvasX = (touchX / rect.width) * canvas.width;
+    const canvasY = (touchY / rect.height) * canvas.height;
+    
+    // Check joystick area (bottom left quadrant)
+    if (canvasX < canvas.width / 2 && canvasY > canvas.height / 2) {
+        touchControls.joystick.active = true;
+        updateJoystickPosition(canvasX, canvasY);
+    }
+    
+    // Check shoot button area (bottom right)
+    if (canvasX > canvas.width / 2 && canvasY > canvas.height / 2) {
+        touchControls.shootButton.active = true;
+        player.shooting = true;
+    }
+    
+    // Check special buttons area (top right)
+    if (canvasX > canvas.width / 2 && canvasY < canvas.height / 2) {
+        checkSpecialButtonTouch(canvasX, canvasY);
+    }
+}
+
+function touchMoveHandler(e) {
+    e.preventDefault();
+    if (!touchControls.joystick.active) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    const touchX = touch.clientX - rect.left;
+    const touchY = touch.clientY - rect.top;
+    
+    // Convert to canvas coordinates
+    const canvasX = (touchX / rect.width) * canvas.width;
+    const canvasY = (touchY / rect.height) * canvas.height;
+    
+    updateJoystickPosition(canvasX, canvasY);
+}
+
+function touchEndHandler(e) {
+    e.preventDefault();
+    touchControls.joystick.active = false;
+    touchControls.shootButton.active = false;
+    player.shooting = false;
+    
+    // Reset joystick position
+    touchControls.joystick.x = 0;
+    touchControls.joystick.y = 0;
+}
+
+function updateJoystickPosition(touchX, touchY) {
+    const joystickCenterX = touchControls.joystick.centerX;
+    const joystickCenterY = touchControls.joystick.centerY;
+    const maxDistance = 50;
+    
+    const deltaX = touchX - joystickCenterX;
+    const deltaY = touchY - joystickCenterY;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    
+    if (distance > maxDistance) {
+        touchControls.joystick.x = (deltaX / distance) * maxDistance;
+        touchControls.joystick.y = (deltaY / distance) * maxDistance;
+    } else {
+        touchControls.joystick.x = deltaX;
+        touchControls.joystick.y = deltaY;
+    }
+}
+
+function checkSpecialButtonTouch(touchX, touchY) {
+    const buttonSize = 60;
+    const buttonSpacing = 70;
+    const startX = canvas.width - 80;
+    const startY = 80;
+    
+    // Beam button (1)
+    if (touchX > startX - buttonSize/2 && touchX < startX + buttonSize/2 &&
+        touchY > startY - buttonSize/2 && touchY < startY + buttonSize/2) {
+        activateBeam();
+    }
+    
+    // Gaze button (2)
+    if (touchX > startX - buttonSize/2 && touchX < startX + buttonSize/2 &&
+        touchY > startY + buttonSpacing - buttonSize/2 && touchY < startY + buttonSpacing + buttonSize/2) {
+        activateGaze();
+    }
+    
+    // Nova button (3)
+    if (touchX > startX - buttonSize/2 && touchX < startX + buttonSize/2 &&
+        touchY > startY + buttonSpacing*2 - buttonSize/2 && touchY < startY + buttonSpacing*2 + buttonSize/2) {
+        activateNova();
+    }
+}
+
 // Game functions
 function restartGame() {
     // Cancel any running animation frame
@@ -192,9 +355,15 @@ function restartGame() {
     if (controlMode === 'keyboard') {
         setupKeyboardControls();
         removeMouseControls();
+        removeMobileControls();
     } else if (controlMode === 'mouse') {
         setupMouseControls();
         removeKeyboardControls();
+        removeMobileControls();
+    } else if (controlMode === 'mobile') {
+        setupMobileControls();
+        removeKeyboardControls();
+        removeMouseControls();
     }
     // Start a new game loop
     gameLoop();
@@ -301,8 +470,18 @@ function updatePlayer() {
         // Keep player in bounds
         player.x = Math.max(player.width / 2, Math.min(canvas.width - player.width / 2, player.x));
         player.y = Math.max(player.height / 2, Math.min(canvas.height - player.height / 2, player.y));
+    } else if (controlMode === 'mobile') {
+        // Mobile joystick movement
+        if (touchControls.joystick.active) {
+            const joystickSensitivity = 0.3;
+            player.x += touchControls.joystick.x * joystickSensitivity;
+            player.y += touchControls.joystick.y * joystickSensitivity;
+        }
+        // Keep player in bounds
+        player.x = Math.max(player.width / 2, Math.min(canvas.width - player.width / 2, player.x));
+        player.y = Math.max(player.height / 2, Math.min(canvas.height - player.height / 2, player.y));
     }
-    // Shooting handled by player.shooting (set by keyboard or mouse)
+    // Shooting handled by player.shooting (set by keyboard, mouse, or mobile)
     if (player.shooting && Date.now() - player.lastShot > player.shotCooldown) {
         shootPlayerBullet();
         player.lastShot = Date.now();
@@ -355,6 +534,95 @@ function drawPlayer() {
     // Engine glow
     ctx.fillStyle = '#ff6600';
     ctx.fillRect(player.x - 5, player.y + player.height / 2, 10, 8);
+}
+
+// Mobile touch control UI
+function drawMobileControls() {
+    if (controlMode !== 'mobile') return;
+    
+    // Draw joystick (bottom left)
+    const joystickCenterX = 80;
+    const joystickCenterY = canvas.height - 80;
+    
+    // Joystick base
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = '#333333';
+    ctx.beginPath();
+    ctx.arc(joystickCenterX, joystickCenterY, 60, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+    
+    // Joystick handle
+    if (touchControls.joystick.active) {
+        ctx.save();
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = '#00ffff';
+        ctx.beginPath();
+        ctx.arc(joystickCenterX + touchControls.joystick.x, joystickCenterY + touchControls.joystick.y, 25, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+    
+    // Draw shoot button (bottom right)
+    const shootX = canvas.width - 80;
+    const shootY = canvas.height - 80;
+    
+    ctx.save();
+    ctx.globalAlpha = touchControls.shootButton.active ? 0.9 : 0.6;
+    ctx.fillStyle = touchControls.shootButton.active ? '#ff4444' : '#444444';
+    ctx.beginPath();
+    ctx.arc(shootX, shootY, 50, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    
+    // Shoot button text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('FIRE', shootX, shootY);
+    ctx.restore();
+    
+    // Draw special buttons (top right)
+    const buttonSize = 50;
+    const buttonSpacing = 60;
+    const startX = canvas.width - 80;
+    const startY = 80;
+    
+    // Beam button
+    drawSpecialButton(startX, startY, buttonSize, '1', specialMoves.beam.active ? '#ffff00' : '#444444');
+    
+    // Gaze button
+    drawSpecialButton(startX, startY + buttonSpacing, buttonSize, '2', specialMoves.gaze.active ? '#ffff00' : '#444444');
+    
+    // Nova button
+    drawSpecialButton(startX, startY + buttonSpacing * 2, buttonSize, '3', specialMoves.nova.active ? '#ffff00' : '#444444');
+}
+
+function drawSpecialButton(x, y, size, text, color) {
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Button text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y);
+    ctx.restore();
 }
 
 // --- LEVEL STATE ---
@@ -494,7 +762,8 @@ function getRandomEnemyColor() {
 let currentEnemyColor = getRandomEnemyColor();
 
 function spawnEnemy() {
-    if (enemies.length < 5 && !bossSpawned && !levelTransitioning) {
+    const maxEnemies = isMobile ? 3 : 5; // Fewer enemies on mobile
+    if (enemies.length < maxEnemies && !bossSpawned && !levelTransitioning) {
         enemies.push({
             x: Math.random() * (canvas.width - 40) + 20,
             y: -40,
@@ -1200,7 +1469,9 @@ function endBonusRound() {
 // --- DRONE ENEMY TYPE ---
 function spawnDrones() {
     if (level >= 3 && !levelTransitioning && !bossSpawned) {
-        let swarmSize = Math.floor(Math.random() * 3) + 3; // 3-5
+        // Fewer drones on mobile
+        const maxDrones = isMobile ? 2 : 3;
+        let swarmSize = Math.floor(Math.random() * maxDrones) + (isMobile ? 2 : 3); // 2-3 on mobile, 3-5 on desktop
         for (let i = 0; i < swarmSize; i++) {
             let angle = (Math.PI * 2 / swarmSize) * i;
             enemies.push({
@@ -1558,7 +1829,9 @@ function gameLoop() {
     if (typeof bonusRoundActive !== 'undefined' && bonusRoundActive) {
         if (Math.random() < 0.12) spawnBonusEnemy();
     } else {
-        if (Math.random() < 0.02) spawnEnemy();
+        // Reduce spawn rate on mobile for better performance
+        const spawnRate = isMobile ? 0.015 : 0.02;
+        if (Math.random() < spawnRate) spawnEnemy();
         if (typeof maybeSpawnDrones !== 'undefined') maybeSpawnDrones();
     }
     // Draw everything
@@ -1568,6 +1841,8 @@ function gameLoop() {
     drawExplosions();
     drawPowerups();
     if (typeof boss !== 'undefined' && boss) drawBoss();
+    // Draw mobile controls (on top of everything)
+    drawMobileControls();
     // Combo aura/trail
     if (typeof comboActive !== 'undefined' && comboActive) {
         ctx.save();
@@ -1591,8 +1866,64 @@ function gameLoop() {
 
 // Make sure the control modal is visible when the page loads
 window.addEventListener('DOMContentLoaded', () => {
-    const controlModal = document.getElementById('controlModal');
-    if (controlModal) {
+    // Initialize DOM elements
+    controlModal = document.getElementById('controlModal');
+    keyboardBtn = document.getElementById('keyboardBtn');
+    mouseBtn = document.getElementById('mouseBtn');
+    mobileBtn = document.getElementById('mobileBtn');
+    instructionsDiv = document.querySelector('.instructions');
+    restartBtn = document.getElementById('restartBtn');
+    
+    // Set up event listeners
+    if (restartBtn) {
+        restartBtn.addEventListener('click', () => {
+            restartGame();
+        });
+    }
+    
+    if (keyboardBtn) {
+        keyboardBtn.addEventListener('click', () => {
+            controlMode = 'keyboard';
+            controlModal.style.display = 'none';
+            instructionsDiv.textContent = 'Use A/D or ←/→ to move | SPACE to shoot';
+            restartGame();
+        });
+    }
+    
+    if (mouseBtn) {
+        mouseBtn.addEventListener('click', () => {
+            controlMode = 'mouse';
+            controlModal.style.display = 'none';
+            instructionsDiv.textContent = 'Move mouse to steer | Click or hold mouse to shoot';
+            restartGame();
+        });
+    }
+    
+    if (mobileBtn) {
+        mobileBtn.addEventListener('click', () => {
+            controlMode = 'mobile';
+            controlModal.style.display = 'none';
+            instructionsDiv.textContent = 'Use joystick to move | Tap shoot button to fire | Tap special buttons for abilities';
+            setupMobileControls();
+            restartGame();
+        });
+    }
+    
+    // Auto-detect mobile and show appropriate controls
+    if (isMobile && !controlMode) {
+        controlMode = 'mobile';
+        setupMobileControls();
+        if (controlModal) {
+            controlModal.style.display = 'none';
+        }
+        if (instructionsDiv) {
+            instructionsDiv.textContent = 'Use joystick to move | Tap shoot button to fire | Tap special buttons for abilities';
+        }
+        // Start game automatically on mobile
+        setTimeout(() => {
+            restartGame();
+        }, 500);
+    } else if (controlModal) {
         controlModal.style.display = 'block';
     }
 });
@@ -1663,3 +1994,4 @@ function activateNova() {
     // Visual effect
     createExplosion(player.x, player.y, 100);
 }
+
