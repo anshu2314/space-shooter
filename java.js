@@ -19,9 +19,9 @@ function setupCanvas() {
     const containerRect = container.getBoundingClientRect();
     
     if (isMobile) {
-        // Mobile: use container size with max constraints
-        const maxWidth = Math.min(500, containerRect.width - 20);
-        const maxHeight = Math.min(400, window.innerHeight * 0.6);
+        // Mobile: use full screen height minus control area
+        const maxWidth = Math.min(window.innerWidth, containerRect.width);
+        const maxHeight = window.innerHeight;
         
         canvas.style.width = maxWidth + 'px';
         canvas.style.height = maxHeight + 'px';
@@ -231,20 +231,27 @@ function touchStartHandler(e) {
     const canvasX = (touchX / rect.width) * canvas.width;
     const canvasY = (touchY / rect.height) * canvas.height;
     
-    // Check joystick area (bottom left quadrant)
-    if (canvasX < canvas.width / 2 && canvasY > canvas.height / 2) {
+    // Check if touch is in control area (bottom 120px)
+    const controlAreaY = canvas.height - 120;
+    if (canvasY < controlAreaY) {
+        // Touch is in game area - ignore for now
+        return;
+    }
+    
+    // Check joystick area (bottom left)
+    if (canvasX < 130 && canvasY > controlAreaY) {
         touchControls.joystick.active = true;
         updateJoystickPosition(canvasX, canvasY);
     }
     
-    // Check shoot button area (bottom right)
-    if (canvasX > canvas.width / 2 && canvasY > canvas.height / 2) {
+    // Check shoot button area (bottom center)
+    if (canvasX > canvas.width/2 - 50 && canvasX < canvas.width/2 + 50 && canvasY > controlAreaY) {
         touchControls.shootButton.active = true;
         player.shooting = true;
     }
     
-    // Check special buttons area (top right)
-    if (canvasX > canvas.width / 2 && canvasY < canvas.height / 2) {
+    // Check special buttons area (bottom right)
+    if (canvasX > canvas.width - 200 && canvasY > controlAreaY) {
         checkSpecialButtonTouch(canvasX, canvasY);
     }
 }
@@ -295,26 +302,26 @@ function updateJoystickPosition(touchX, touchY) {
 }
 
 function checkSpecialButtonTouch(touchX, touchY) {
-    const buttonSize = 60;
-    const buttonSpacing = 70;
+    const buttonSize = 40;
+    const buttonSpacing = 50;
     const startX = canvas.width - 80;
-    const startY = 80;
+    const startY = canvas.height - 60;
     
-    // Beam button (1)
+    // Beam button (1) - rightmost
     if (touchX > startX - buttonSize/2 && touchX < startX + buttonSize/2 &&
         touchY > startY - buttonSize/2 && touchY < startY + buttonSize/2) {
         activateBeam();
     }
     
-    // Gaze button (2)
-    if (touchX > startX - buttonSize/2 && touchX < startX + buttonSize/2 &&
-        touchY > startY + buttonSpacing - buttonSize/2 && touchY < startY + buttonSpacing + buttonSize/2) {
+    // Gaze button (2) - middle
+    if (touchX > startX - buttonSpacing - buttonSize/2 && touchX < startX - buttonSpacing + buttonSize/2 &&
+        touchY > startY - buttonSize/2 && touchY < startY + buttonSize/2) {
         activateGaze();
     }
     
-    // Nova button (3)
-    if (touchX > startX - buttonSize/2 && touchX < startX + buttonSize/2 &&
-        touchY > startY + buttonSpacing*2 - buttonSize/2 && touchY < startY + buttonSpacing*2 + buttonSize/2) {
+    // Nova button (3) - leftmost
+    if (touchX > startX - buttonSpacing*2 - buttonSize/2 && touchX < startX - buttonSpacing*2 + buttonSize/2 &&
+        touchY > startY - buttonSize/2 && touchY < startY + buttonSize/2) {
         activateNova();
     }
 }
@@ -540,42 +547,53 @@ function drawPlayer() {
 function drawMobileControls() {
     if (controlMode !== 'mobile') return;
     
+    // Calculate control area at bottom of screen
+    const controlAreaHeight = 120;
+    const controlAreaY = canvas.height - controlAreaHeight;
+    
+    // Draw semi-transparent control background
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, controlAreaY, canvas.width, controlAreaHeight);
+    ctx.restore();
+    
     // Draw joystick (bottom left)
     const joystickCenterX = 80;
-    const joystickCenterY = canvas.height - 80;
+    const joystickCenterY = canvas.height - 60;
     
     // Joystick base
     ctx.save();
-    ctx.globalAlpha = 0.6;
+    ctx.globalAlpha = 0.8;
     ctx.fillStyle = '#333333';
     ctx.beginPath();
-    ctx.arc(joystickCenterX, joystickCenterY, 60, 0, Math.PI * 2);
+    ctx.arc(joystickCenterX, joystickCenterY, 50, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.stroke();
     ctx.restore();
     
     // Joystick handle
     if (touchControls.joystick.active) {
         ctx.save();
-        ctx.globalAlpha = 0.8;
+        ctx.globalAlpha = 0.9;
         ctx.fillStyle = '#00ffff';
         ctx.beginPath();
-        ctx.arc(joystickCenterX + touchControls.joystick.x, joystickCenterY + touchControls.joystick.y, 25, 0, Math.PI * 2);
+        ctx.arc(joystickCenterX + touchControls.joystick.x, joystickCenterY + touchControls.joystick.y, 20, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     }
     
-    // Draw shoot button (bottom right)
-    const shootX = canvas.width - 80;
-    const shootY = canvas.height - 80;
+    // Draw shoot button (bottom center)
+    const shootX = canvas.width / 2;
+    const shootY = canvas.height - 60;
     
     ctx.save();
-    ctx.globalAlpha = touchControls.shootButton.active ? 0.9 : 0.6;
+    ctx.globalAlpha = touchControls.shootButton.active ? 0.9 : 0.7;
     ctx.fillStyle = touchControls.shootButton.active ? '#ff4444' : '#444444';
     ctx.beginPath();
-    ctx.arc(shootX, shootY, 50, 0, Math.PI * 2);
+    ctx.arc(shootX, shootY, 45, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 3;
@@ -583,26 +601,26 @@ function drawMobileControls() {
     
     // Shoot button text
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 24px Arial';
+    ctx.font = 'bold 20px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('FIRE', shootX, shootY);
     ctx.restore();
     
-    // Draw special buttons (top right)
-    const buttonSize = 50;
-    const buttonSpacing = 60;
+    // Draw special buttons (bottom right)
+    const buttonSize = 40;
+    const buttonSpacing = 50;
     const startX = canvas.width - 80;
-    const startY = 80;
+    const startY = canvas.height - 60;
     
     // Beam button
     drawSpecialButton(startX, startY, buttonSize, '1', specialMoves.beam.active ? '#ffff00' : '#444444');
     
     // Gaze button
-    drawSpecialButton(startX, startY + buttonSpacing, buttonSize, '2', specialMoves.gaze.active ? '#ffff00' : '#444444');
+    drawSpecialButton(startX - buttonSpacing, startY, buttonSize, '2', specialMoves.gaze.active ? '#ffff00' : '#444444');
     
     // Nova button
-    drawSpecialButton(startX, startY + buttonSpacing * 2, buttonSize, '3', specialMoves.nova.active ? '#ffff00' : '#444444');
+    drawSpecialButton(startX - buttonSpacing * 2, startY, buttonSize, '3', specialMoves.nova.active ? '#ffff00' : '#444444');
 }
 
 function drawSpecialButton(x, y, size, text, color) {
@@ -1994,4 +2012,3 @@ function activateNova() {
     // Visual effect
     createExplosion(player.x, player.y, 100);
 }
-
