@@ -21,7 +21,7 @@ function setupCanvas() {
     if (isMobile) {
         // Mobile: use full screen height minus control area
         const maxWidth = Math.min(window.innerWidth, containerRect.width);
-        const maxHeight = window.innerHeight;
+        const maxHeight = window.innerHeight - 150; // Reserve 150px for controls
         
         canvas.style.width = maxWidth + 'px';
         canvas.style.height = maxHeight + 'px';
@@ -188,142 +188,146 @@ function mouseUpHandler(e) {
 
 // Mobile touch controls
 function setupMobileControls() {
-    canvas.addEventListener('touchstart', touchStartHandler, { passive: false });
-    canvas.addEventListener('touchmove', touchMoveHandler, { passive: false });
-    canvas.addEventListener('touchend', touchEndHandler, { passive: false });
-    canvas.addEventListener('touchcancel', touchEndHandler, { passive: false });
+    // Show mobile controls container
+    const mobileControls = document.getElementById('mobileControls');
+    if (mobileControls) {
+        mobileControls.classList.add('active');
+    }
     
-    // Prevent default touch behaviors
-    canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
-    canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+    // Set up joystick
+    setupJoystick();
+    
+    // Set up buttons
+    setupMobileButtons();
     
     // Initialize touch control positions
     initializeTouchControls();
 }
 
 function removeMobileControls() {
-    canvas.removeEventListener('touchstart', touchStartHandler);
-    canvas.removeEventListener('touchmove', touchMoveHandler);
-    canvas.removeEventListener('touchend', touchEndHandler);
-    canvas.removeEventListener('touchcancel', touchEndHandler);
+    // Hide mobile controls container
+    const mobileControls = document.getElementById('mobileControls');
+    if (mobileControls) {
+        mobileControls.classList.remove('active');
+    }
+    
+    // Remove joystick event listeners
+    const joystickBase = document.getElementById('joystickBase');
+    if (joystickBase) {
+        joystickBase.replaceWith(joystickBase.cloneNode(true));
+    }
+    
+    // Remove button event listeners
+    const fireBtn = document.getElementById('fireBtn');
+    const beamBtn = document.getElementById('beamBtn');
+    const gazeBtn = document.getElementById('gazeBtn');
+    const novaBtn = document.getElementById('novaBtn');
+    
+    if (fireBtn) fireBtn.replaceWith(fireBtn.cloneNode(true));
+    if (beamBtn) beamBtn.replaceWith(beamBtn.cloneNode(true));
+    if (gazeBtn) gazeBtn.replaceWith(gazeBtn.cloneNode(true));
+    if (novaBtn) novaBtn.replaceWith(novaBtn.cloneNode(true));
+}
+
+function setupJoystick() {
+    const joystickBase = document.getElementById('joystickBase');
+    const joystickHandle = document.getElementById('joystickHandle');
+    
+    if (!joystickBase || !joystickHandle) return;
+    
+    let isDragging = false;
+    let startX, startY;
+    
+    joystickBase.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        isDragging = true;
+        const rect = joystickBase.getBoundingClientRect();
+        startX = e.touches[0].clientX - rect.left;
+        startY = e.touches[0].clientY - rect.top;
+        touchControls.joystick.active = true;
+    });
+    
+    joystickBase.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (!isDragging) return;
+        
+        const rect = joystickBase.getBoundingClientRect();
+        const touchX = e.touches[0].clientX - rect.left;
+        const touchY = e.touches[0].clientY - rect.top;
+        
+        const deltaX = touchX - rect.width / 2;
+        const deltaY = touchY - rect.height / 2;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        const maxDistance = rect.width / 2 - 20;
+        
+        if (distance > maxDistance) {
+            const angle = Math.atan2(deltaY, deltaX);
+            touchControls.joystick.x = Math.cos(angle) * maxDistance;
+            touchControls.joystick.y = Math.sin(angle) * maxDistance;
+        } else {
+            touchControls.joystick.x = deltaX;
+            touchControls.joystick.y = deltaY;
+        }
+        
+        // Update joystick handle position
+        joystickHandle.style.transform = `translate(calc(-50% + ${touchControls.joystick.x}px), calc(-50% + ${touchControls.joystick.y}px))`;
+    });
+    
+    joystickBase.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        isDragging = false;
+        touchControls.joystick.active = false;
+        touchControls.joystick.x = 0;
+        touchControls.joystick.y = 0;
+        joystickHandle.style.transform = 'translate(-50%, -50%)';
+    });
+}
+
+function setupMobileButtons() {
+    const fireBtn = document.getElementById('fireBtn');
+    const beamBtn = document.getElementById('beamBtn');
+    const gazeBtn = document.getElementById('gazeBtn');
+    const novaBtn = document.getElementById('novaBtn');
+    
+    if (fireBtn) {
+        fireBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            touchControls.shootButton.active = true;
+            player.shooting = true;
+        });
+        
+        fireBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            touchControls.shootButton.active = false;
+            player.shooting = false;
+        });
+    }
+    
+    if (beamBtn) {
+        beamBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            activateBeam();
+        });
+    }
+    
+    if (gazeBtn) {
+        gazeBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            activateGaze();
+        });
+    }
+    
+    if (novaBtn) {
+        novaBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            activateNova();
+        });
+    }
 }
 
 function initializeTouchControls() {
-    const rect = canvas.getBoundingClientRect();
-    
-    // Joystick position (bottom left)
-    touchControls.joystick.centerX = 80;
-    touchControls.joystick.centerY = canvas.height - 80;
-    
-    // Shoot button position (bottom right)
-    touchControls.shootButton.x = canvas.width - 80;
-    touchControls.shootButton.y = canvas.height - 80;
-}
-
-function touchStartHandler(e) {
-    e.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const touch = e.touches[0];
-    const touchX = touch.clientX - rect.left;
-    const touchY = touch.clientY - rect.top;
-    
-    // Convert to canvas coordinates
-    const canvasX = (touchX / rect.width) * canvas.width;
-    const canvasY = (touchY / rect.height) * canvas.height;
-    
-    // Check if touch is in control area (bottom 120px)
-    const controlAreaY = canvas.height - 120;
-    if (canvasY < controlAreaY) {
-        // Touch is in game area - ignore for now
-        return;
-    }
-    
-    // Check joystick area (bottom left)
-    if (canvasX < 130 && canvasY > controlAreaY) {
-        touchControls.joystick.active = true;
-        updateJoystickPosition(canvasX, canvasY);
-    }
-    
-    // Check shoot button area (bottom center)
-    if (canvasX > canvas.width/2 - 50 && canvasX < canvas.width/2 + 50 && canvasY > controlAreaY) {
-        touchControls.shootButton.active = true;
-        player.shooting = true;
-    }
-    
-    // Check special buttons area (bottom right)
-    if (canvasX > canvas.width - 200 && canvasY > controlAreaY) {
-        checkSpecialButtonTouch(canvasX, canvasY);
-    }
-}
-
-function touchMoveHandler(e) {
-    e.preventDefault();
-    if (!touchControls.joystick.active) return;
-    
-    const rect = canvas.getBoundingClientRect();
-    const touch = e.touches[0];
-    const touchX = touch.clientX - rect.left;
-    const touchY = touch.clientY - rect.top;
-    
-    // Convert to canvas coordinates
-    const canvasX = (touchX / rect.width) * canvas.width;
-    const canvasY = (touchY / rect.height) * canvas.height;
-    
-    updateJoystickPosition(canvasX, canvasY);
-}
-
-function touchEndHandler(e) {
-    e.preventDefault();
-    touchControls.joystick.active = false;
-    touchControls.shootButton.active = false;
-    player.shooting = false;
-    
-    // Reset joystick position
-    touchControls.joystick.x = 0;
-    touchControls.joystick.y = 0;
-}
-
-function updateJoystickPosition(touchX, touchY) {
-    const joystickCenterX = touchControls.joystick.centerX;
-    const joystickCenterY = touchControls.joystick.centerY;
-    const maxDistance = 50;
-    
-    const deltaX = touchX - joystickCenterX;
-    const deltaY = touchY - joystickCenterY;
-    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-    
-    if (distance > maxDistance) {
-        touchControls.joystick.x = (deltaX / distance) * maxDistance;
-        touchControls.joystick.y = (deltaY / distance) * maxDistance;
-    } else {
-        touchControls.joystick.x = deltaX;
-        touchControls.joystick.y = deltaY;
-    }
-}
-
-function checkSpecialButtonTouch(touchX, touchY) {
-    const buttonSize = 40;
-    const buttonSpacing = 50;
-    const startX = canvas.width - 80;
-    const startY = canvas.height - 60;
-    
-    // Beam button (1) - rightmost
-    if (touchX > startX - buttonSize/2 && touchX < startX + buttonSize/2 &&
-        touchY > startY - buttonSize/2 && touchY < startY + buttonSize/2) {
-        activateBeam();
-    }
-    
-    // Gaze button (2) - middle
-    if (touchX > startX - buttonSpacing - buttonSize/2 && touchX < startX - buttonSpacing + buttonSize/2 &&
-        touchY > startY - buttonSize/2 && touchY < startY + buttonSize/2) {
-        activateGaze();
-    }
-    
-    // Nova button (3) - leftmost
-    if (touchX > startX - buttonSpacing*2 - buttonSize/2 && touchX < startX - buttonSpacing*2 + buttonSize/2 &&
-        touchY > startY - buttonSize/2 && touchY < startY + buttonSize/2) {
-        activateNova();
-    }
+    // No longer needed since we're using HTML controls
+    // The controls are positioned by CSS
 }
 
 // Game functions
@@ -543,104 +547,29 @@ function drawPlayer() {
     ctx.fillRect(player.x - 5, player.y + player.height / 2, 10, 8);
 }
 
-// Mobile touch control UI
+// Mobile touch control UI - Now using HTML controls instead of canvas drawing
 function drawMobileControls() {
+    // No longer drawing controls on canvas - using HTML controls instead
     if (controlMode !== 'mobile') return;
     
-    // Calculate control area at bottom of screen
-    const controlAreaHeight = 120;
-    const controlAreaY = canvas.height - controlAreaHeight;
-    
-    // Draw semi-transparent control background
-    ctx.save();
-    ctx.globalAlpha = 0.3;
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, controlAreaY, canvas.width, controlAreaHeight);
-    ctx.restore();
-    
-    // Draw joystick (bottom left)
-    const joystickCenterX = 80;
-    const joystickCenterY = canvas.height - 60;
-    
-    // Joystick base
-    ctx.save();
-    ctx.globalAlpha = 0.8;
-    ctx.fillStyle = '#333333';
-    ctx.beginPath();
-    ctx.arc(joystickCenterX, joystickCenterY, 50, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.restore();
-    
-    // Joystick handle
-    if (touchControls.joystick.active) {
-        ctx.save();
-        ctx.globalAlpha = 0.9;
-        ctx.fillStyle = '#00ffff';
-        ctx.beginPath();
-        ctx.arc(joystickCenterX + touchControls.joystick.x, joystickCenterY + touchControls.joystick.y, 20, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-    }
-    
-    // Draw shoot button (bottom center)
-    const shootX = canvas.width / 2;
-    const shootY = canvas.height - 60;
-    
-    ctx.save();
-    ctx.globalAlpha = touchControls.shootButton.active ? 0.9 : 0.7;
-    ctx.fillStyle = touchControls.shootButton.active ? '#ff4444' : '#444444';
-    ctx.beginPath();
-    ctx.arc(shootX, shootY, 45, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    
-    // Shoot button text
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 20px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('FIRE', shootX, shootY);
-    ctx.restore();
-    
-    // Draw special buttons (bottom right)
-    const buttonSize = 40;
-    const buttonSpacing = 50;
-    const startX = canvas.width - 80;
-    const startY = canvas.height - 60;
-    
-    // Beam button
-    drawSpecialButton(startX, startY, buttonSize, '1', specialMoves.beam.active ? '#ffff00' : '#444444');
-    
-    // Gaze button
-    drawSpecialButton(startX - buttonSpacing, startY, buttonSize, '2', specialMoves.gaze.active ? '#ffff00' : '#444444');
-    
-    // Nova button
-    drawSpecialButton(startX - buttonSpacing * 2, startY, buttonSize, '3', specialMoves.nova.active ? '#ffff00' : '#444444');
+    // Update special button states
+    updateMobileSpecialButtons();
 }
 
-function drawSpecialButton(x, y, size, text, color) {
-    ctx.save();
-    ctx.globalAlpha = 0.7;
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(x, y, size, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-    ctx.stroke();
+function updateMobileSpecialButtons() {
+    const beamBtn = document.getElementById('beamBtn');
+    const gazeBtn = document.getElementById('gazeBtn');
+    const novaBtn = document.getElementById('novaBtn');
     
-    // Button text
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 20px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, x, y);
-    ctx.restore();
+    if (beamBtn) {
+        beamBtn.classList.toggle('active', specialMoves.beam.active);
+    }
+    if (gazeBtn) {
+        gazeBtn.classList.toggle('active', specialMoves.gaze.active);
+    }
+    if (novaBtn) {
+        novaBtn.classList.toggle('active', specialMoves.nova.active);
+    }
 }
 
 // --- LEVEL STATE ---
