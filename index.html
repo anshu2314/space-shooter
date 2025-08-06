@@ -1,11 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="google-site-verification" content="ykUDjkWJSMjqVOOOM3kptuqwJR3qtLJxdkbDW_fxZ4o" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Space Shooter X – Play Free Space Battle Game Online</title>
-     <meta name="description" content="Play Space Shooter X – a fast-paced space shooter game. Destroy alien ships, conquer bosses, and unlock combo moves. No download needed – play free in your browser.">
+    <title>2D Jet Shooter Game</title>
     <style>
         * {
             margin: 0;
@@ -18,6 +16,14 @@
             font-family: 'Arial', sans-serif;
             overflow: hidden;
             min-height: 100vh;
+            /* Prevent zooming on mobile */
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
         .main-layout {
             display: flex;
@@ -38,6 +44,12 @@
         #gameCanvas {
             display: block;
             background: linear-gradient(to bottom, #000428 0%, #004e92 100%);
+            /* Prevent zooming and selection on canvas */
+            touch-action: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
         .ui-overlay {
             position: absolute;
@@ -415,6 +427,136 @@
         @media (max-width: 1100px) {
             .right-sidebar, .controls-info-global { display: none; }
         }
+        
+        /* Mobile responsive styles */
+        @media (max-width: 768px) {
+            .main-layout {
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 10px;
+            }
+            
+            .game-container {
+                margin: 10px 0;
+                border-width: 2px;
+            }
+            
+            #gameCanvas {
+                width: 100vw;
+                height: 60vh;
+                max-width: 500px;
+                max-height: 400px;
+            }
+            
+            .health-bar {
+                width: 150px;
+                height: 15px;
+                top: 10px;
+                left: 10px;
+            }
+            
+            .score {
+                font-size: 18px;
+                top: 10px;
+                right: 10px;
+            }
+            
+            .boss-health {
+                width: 200px;
+                height: 20px;
+                top: 10px;
+            }
+            
+            .game-over {
+                font-size: 32px;
+            }
+            
+            .restart-btn {
+                padding: 12px 24px;
+                font-size: 16px;
+            }
+            
+            .instructions {
+                font-size: 12px;
+                bottom: 10px;
+                left: 10px;
+            }
+            
+            .boost-bars {
+                right: 10px;
+                bottom: 10px;
+                gap: 5px;
+            }
+            
+            .boost-bar {
+                min-width: 120px;
+                max-width: 150px;
+                padding: 4px 8px 4px 6px;
+            }
+            
+            .boost-segment {
+                width: 12px;
+                height: 18px;
+                font-size: 0.9rem;
+            }
+            
+            .level-text {
+                font-size: 2rem;
+            }
+            
+            .combo-float {
+                font-size: 1.5rem;
+                top: 60px;
+            }
+            
+            .bonus-bar {
+                font-size: 1.4rem;
+                top: 30px;
+                padding: 8px 20px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            #gameCanvas {
+                height: 50vh;
+                max-height: 300px;
+            }
+            
+            .health-bar {
+                width: 120px;
+                height: 12px;
+            }
+            
+            .score {
+                font-size: 16px;
+            }
+            
+            .boss-health {
+                width: 150px;
+                height: 15px;
+            }
+            
+            .game-over {
+                font-size: 28px;
+            }
+            
+            .restart-btn {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+            
+            .boost-bar {
+                min-width: 100px;
+                max-width: 120px;
+            }
+            
+            .boost-segment {
+                width: 10px;
+                height: 16px;
+                font-size: 0.8rem;
+            }
+        }
         .boost-bars {
             position: absolute;
             right: 32px;
@@ -574,6 +716,10 @@
                     <button id="mouseBtn" style="padding:18px 45px;font-size:1.4rem;border-radius:12px;border:none;background:linear-gradient(135deg, #ff9800, #f57c00);color:#fff;font-weight:bold;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);transition:all 0.3s ease;text-transform:uppercase;letter-spacing:1px;">
                         <span style="display:block;margin-bottom:5px;">🖱️</span>
                         Mouse
+                    </button>
+                    <button id="mobileBtn" style="padding:18px 45px;font-size:1.4rem;border-radius:12px;border:none;background:linear-gradient(135deg, #4caf50, #2e7d32);color:#fff;font-weight:bold;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);transition:all 0.3s ease;text-transform:uppercase;letter-spacing:1px;">
+                        <span style="display:block;margin-bottom:5px;">📱</span>
+                        Mobile
                     </button>
                 </div>
             </div>
