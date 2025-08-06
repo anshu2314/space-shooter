@@ -524,6 +524,113 @@
             }
         }
         
+        /* Mobile Controls Styles */
+        .mobile-controls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 150px;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.7));
+            border-top: 2px solid #00ffff;
+            z-index: 1000;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        .mobile-controls.active {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .joystick-area {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .joystick-base {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: rgba(51, 51, 51, 0.8);
+            border: 3px solid #ffffff;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .joystick-handle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #00ffff;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.1s ease;
+        }
+        
+        .action-buttons {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .fire-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff4444, #cc0000);
+            border: 3px solid #ffffff;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .fire-btn:active {
+            transform: scale(0.95);
+            background: linear-gradient(135deg, #cc0000, #990000);
+        }
+        
+        .special-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .special-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(68, 68, 68, 0.8);
+            border: 2px solid #ffffff;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .special-btn:active {
+            transform: scale(0.9);
+            background: rgba(255, 255, 0, 0.8);
+        }
+        
+        .special-btn.active {
+            background: rgba(255, 255, 0, 0.8);
+            box-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
+        }
+        
         @media (max-width: 480px) {
             #gameCanvas {
                 height: 100%;
@@ -748,6 +855,22 @@
             </div>
             <div class="combo-float" id="comboFloat"></div>
             <div class="bonus-bar" id="bonusBar">🎁 Bonus Round – Double Points!</div>
+        </div>
+        <!-- Mobile Controls Container -->
+        <div class="mobile-controls" id="mobileControls">
+            <div class="joystick-area">
+                <div class="joystick-base" id="joystickBase">
+                    <div class="joystick-handle" id="joystickHandle"></div>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button class="fire-btn" id="fireBtn">FIRE</button>
+                <div class="special-buttons">
+                    <button class="special-btn" id="beamBtn">1</button>
+                    <button class="special-btn" id="gazeBtn">2</button>
+                    <button class="special-btn" id="novaBtn">3</button>
+                </div>
+            </div>
         </div>
         <div class="right-sidebar">
             <div class="how-to-play-box">
