@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Discover the core mechanics and gameplay of Space Shooter X, the ultimate 2D browser-based space shooter game." />
+  <meta name="keywords" content="Space Shooter X, 2D space shooter, gameplay mechanics, HTML5 space game, free shooting game" />
+  <meta name="author" content="Space Shooter X Dev Team" />
+  <title>How Space Shooter X Works – Behind the Gameplay</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(to right, #0f0c29, #302b63, #24243e);
+      color: #ffffff;
+    }
+    header {
+      background-color: #1a1a2e;
+      padding: 20px;
+      text-align: center;
+      border-bottom: 2px solid #00f2fe;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 2.5rem;
+      color: #00f2fe;
+    }
+    nav {
+      text-align: center;
+      margin: 20px 0;
+    }
+    nav a {
+      color: #00f2fe;
+      text-decoration: none;
+      margin: 0 15px;
+      font-weight: bold;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 30px;
+      background-color: rgba(0, 0, 0, 0.6);
+      border-radius: 10px;
+    }
+    h2 {
+      color: #ff6ec4;
+    }
+    p {
+      line-height: 1.7;
+    }
+    footer {
+      text-align: center;
+      padding: 20px;
+      background-color: #1a1a2e;
+      color: #888;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>How Space Shooter X Works</h1>
+  </header>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/about.html">About</a>
+    <a href="/index.html">Play Now</a>
+    <a href="/contact.html">Contact</a>
+  </nav>
+  <div class="container">
+    <h2>Welcome to the Battle Zone</h2>
+    <p>
+      <strong>Space Shooter X</strong> is a fast-paced 2D space shooting game built with HTML5, offering players a seamless experience right in their browser. With no downloads or sign-ups required, it provides instant action for anyone craving a quick but intense gaming session.
+    </p>
+
+    <h2>Core Gameplay</h2>
+    <p>
+      The gameplay revolves around piloting a sleek, powerful spaceship through waves of hostile enemies and environmental hazards. As players survive each wave, enemies grow stronger, faster, and more aggressive.
+    </p>
+    <p>
+      Players can move using the arrow keys or WASD, fire weapons with the spacebar or mouse click, and activate powerful special abilities like Beam Blast, Gaze Burst, and Nova Pulse with keys 1, 2, and 3 respectively.
+    </p>
+
+    <h2>Strategic Mechanics</h2>
+    <p>
+      Every ability in Space Shooter X has a cooldown, forcing players to make tactical decisions. Should you save your Beam Blast for the next wave or use it now and risk being overwhelmed? The game rewards skill, timing, and decision-making.
+    </p>
+
+    <h2>Power-Ups and Progression</h2>
+    <p>
+      Players can collect various power-ups, such as shield boosts, weapon upgrades, and healing cores. As gameplay progresses, tougher enemies and epic bosses appear every few minutes to test your reflexes and endurance.
+    </p>
+
+    <h2>Why Space Shooter X Stands Out</h2>
+    <p>
+      Unlike traditional mobile games cluttered with ads or pay-to-win mechanics, Space Shooter X offers a pure, skill-based arcade experience. It’s completely free and optimized for desktop and mobile browsers.
+    </p>
+
+    <h2>Play Now</h2>
+    <p>
+      Ready to dive into the chaos? <a href="/index.html">Click here to play Space Shooter X now</a> and prove your skills against endless space threats. No login, no delay—just you, your ship, and the stars.
+    </p>
+  </div>
+  <footer>
+    &copy; 2025 Space Shooter X. All rights reserved.
+  </footer>
+</body>
+</html>
