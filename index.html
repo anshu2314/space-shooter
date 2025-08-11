@@ -119,6 +119,72 @@
   </p>
 </div>
 
+<!-- Articles Button -->
+<button id="articlesBtn" style="
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    background-color: #ffd700;
+    color: black;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: bold;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    z-index: 9999;
+">
+    Articles
+</button>
+
+<!-- Slide-out Articles Panel -->
+<div id="articlesPanel" style="
+    position: fixed;
+    top: 0;
+    right: -300px;
+    width: 300px;
+    height: 100%;
+    background-color: #0b0f1a;
+    color: white;
+    box-shadow: -2px 0 8px rgba(0,0,0,0.5);
+    transition: right 0.3s ease-in-out;
+    z-index: 10000;
+    padding: 20px;
+">
+    <!-- Close Button -->
+    <span id="closeArticles" style="
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 20px;
+        font-weight: bold;
+        color: white;
+        cursor: pointer;
+    ">&times;</span>
+
+    <h2 style="color: #ffd700; font-size: 20px;">From Our Blog</h2>
+    <ul style="list-style: none; padding-left: 0;">
+        <li><a href="/about.html" style="color: #00ffff; text-decoration: none;">About The Game</a></li>
+        <li><a href="/blog1.html" style="color: #00ffff; text-decoration: none;">How Space Shooter X Works?</a></li>
+        <li><a href="/spaceshooter.html" style="color: #00ffff; text-decoration: none;">The Best Space Shooting Game You Can Play Online</a></li>
+        <li><a href="/bestgames.html" style="color: #00ffff; text-decoration: none;">Best Web Games To Play</a></li>
+    </ul>
+</div>
+
+<!-- JavaScript for Toggle -->
+<script>
+    const articlesBtn = document.getElementById('articlesBtn');
+    const articlesPanel = document.getElementById('articlesPanel');
+    const closeArticles = document.getElementById('closeArticles');
+
+    articlesBtn.addEventListener('click', () => {
+        articlesPanel.style.right = '0px';
+    });
+
+    closeArticles.addEventListener('click', () => {
+        articlesPanel.style.right = '-300px';
+    });
+</script>
 
 
 
