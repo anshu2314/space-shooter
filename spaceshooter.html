@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="keywords" content="Space Shooter X, free online space shooter game, play space shooter, browser space battle, alien shooter, 2D space game, shoot em up, arcade shooter, play free games, space shooting game">
+<meta name="description" content="Play Space Shooter X – a thrilling free online 2D space shooter game. Blast alien ships, survive endless waves, and test your skills in intense space battles. Play instantly in your browser!">
+
+<title>Space Shooter X - Best Space Shooting Game</title>
+<style>
+    /* Base Styles */
+    body {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #000;
+        color: #f0f0f0;
+        line-height: 1.6;
+        overflow-x: hidden;
+    }
+
+    html {
+        scroll-behavior: smooth;
+    }
+
+    /* Starfield Canvas */
+    #starfield {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        background: black;
+    }
+
+
+    /* Header */
+    header {
+        background: rgba(0,0,0,0.6);
+        backdrop-filter: blur(6px);
+        color: white;
+        padding: 60px 20px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        animation: fadeInDown 1s ease-out;
+    }
+
+    header h1 {
+        font-size: 2.8rem;
+        margin-bottom: 10px;
+        text-shadow: 0 0 15px rgba(255,255,255,0.5), 0 0 25px #5e17eb;
+        animation: glowText 2s ease-in-out infinite alternate;
+    }
+
+    /* 🔹 Enhanced Subtitle Style */
+    header p {
+        font-size: 1.3rem;
+        opacity: 1;
+        display: inline-block;
+        padding: 12px 20px;
+        background: rgba(10, 10, 20, 0.7); /* deep space glassy effect */
+        border-radius: 12px;
+        border: 2px solid transparent;
+        position: relative;
+        color: #ffffff;
+        font-weight: bold;
+        text-shadow: 0 0 10px #5e17eb, 0 0 20px #00ccff;
+        animation: glowPulse 2s infinite alternate, floatText 4s ease-in-out infinite;
+    }
+
+    /* Animated glowing border */
+    header p::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 12px;
+        padding: 2px;
+        background: linear-gradient(45deg, #ffcc00, #ff4500, #00ccff, #5e17eb, #ffcc00);
+        background-size: 300% 300%;
+        z-index: -1;
+        animation: borderShift 6s linear infinite;
+        -webkit-mask: 
+            linear-gradient(#fff 0 0) content-box, 
+            linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+                mask-composite: exclude;
+    }
+
+    /* Main Content */
+    main {
+        max-width: 900px;
+        margin: auto;
+        padding: 20px;
+    }
+
+    h2 {
+        color: #ffcc00;
+        margin-top: 40px;
+        position: relative;
+    }
+
+    h2::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        bottom: -5px;
+        width: 50px;
+        height: 3px;
+        background: #ffcc00;
+        border-radius: 2px;
+        animation: slideIn 1s ease forwards;
+    }
+
+    p, h2 {
+        animation: fadeInUp 0.8s ease both;
+    }
+
+    a {
+        color: #00ccff;
+        text-decoration: none;
+        transition: color 0.3s;
+    }
+
+    a:hover {
+        color: #66e0ff;
+    }
+
+    /* CTA Button */
+    .cta-button {
+        display: inline-block;
+        background: linear-gradient(45deg, #ff4500, #ff7f50);
+        color: white;
+        padding: 14px 30px;
+        margin-top: 20px;
+        border-radius: 50px;
+        text-decoration: none;
+        font-weight: bold;
+        transition: all 0.4s ease;
+        box-shadow: 0 0 15px rgba(255,69,0,0.5);
+        animation: pulse 2s infinite;
+    }
+
+    .cta-button:hover {
+        background: linear-gradient(45deg, #e63900, #ff6347);
+        box-shadow: 0 0 25px rgba(255,69,0,0.8);
+        transform: scale(1.05);
+    }
+
+    /* Footer */
+    footer {
+        background: rgba(0,0,0,0.7);
+        text-align: center;
+        padding: 15px;
+        font-size: 0.9rem;
+        color: #aaa;
+        margin-top: 40px;
+        animation: fadeIn 1.5s ease;
+    }
+<!-- Hidden SEO keywords -->
+<div style="position: absolute; left: -9999px; visibility: hidden;">
+  Space Shooter X, free online space shooter game, play space shooter online, 
+  2D space battle game, alien shooter browser game, arcade space shooting game, 
+  free play shoot em up, space attack game online, browser based space shooter, 
+  alien invasion shooting game
+</div>
+
+    /* Animations */
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes fadeInDown {
+        from { transform: translateY(-30px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes fadeInUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes glowText {
+        from { text-shadow: 0 0 10px #fff, 0 0 20px #5e17eb, 0 0 30px #5e17eb; }
+        to { text-shadow: 0 0 20px #fff, 0 0 30px #ffcc00, 0 0 40px #ffcc00; }
+    }
+
+    @keyframes glowPulse {
+        0% { text-shadow: 0 0 10px #5e17eb, 0 0 20px #00ccff; }
+        100% { text-shadow: 0 0 20px #ffcc00, 0 0 40px #ff4500; }
+    }
+
+    @keyframes floatText {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-5px); }
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+
+    @keyframes slideIn {
+        from { width: 0; }
+        to { width: 50px; }
+    }
+
+    @keyframes borderShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+</style>
+</head>
+<body>
+
+<canvas id="starfield"></canvas>
+
+<header>
+    <h1>Unleashing the Cosmos: Discovering Space Shooter X</h1>
+    <p>The Best Space Shooting Game You Can Play Online</p>
+</header>
+
+<main>
+    <p>In a universe sprawling with possibilities, few genres capture our imaginations like space shooters. The thrill of piloting a starship through asteroid fields, battling intergalactic foes, and dodging enemy fire is an experience that players crave. Among the myriad options available, one game rises above the rest: <strong>Space Shooter X</strong>. If you’re seeking the best space shooting game online, look no further than this exhilarating adventure found at <a href="https://space-shooter-x.onrender.com" target="_blank">space-shooter-x.onrender.com</a>. Let’s dive into what makes this game an absolute must-play!</p>
+
+    <h2>Engaging Gameplay Experience</h2>
+    <p>Space Shooter X offers an immersive gameplay experience that balances nostalgia with modern design. From the moment you start, you're thrust into a beautifully crafted universe filled with vibrant graphics and mesmerizing sound effects. Each level is designed to challenge and captivate, featuring diverse environments that keep the excitement fresh. Players can expect a seamless transition from one stage to another, where navigating through intricate mazes of enemies while collecting power-ups becomes second nature.</p>
+
+    <h2>Multiple Levels and Boss Battles</h2>
+    <p>One of the standout features of Space Shooter X is its multitude of levels, each escalating in difficulty and complexity. With every new level, players face new challenges and enemies, ensuring that monotony is never a concern. But it doesn’t stop there; the game elevates the stakes further with formidable boss battles at the end of specific stages. These bosses are not just bigger enemies; they come with unique attack patterns and special abilities that demand quick thinking and strategy. Defeating them provides a satisfying sense of accomplishment that keeps players coming back for more.</p>
+
+    <h2>Special Attacks and Power-Ups</h2>
+    <p>What truly distinguishes Space Shooter X as the best space shooting game is its dynamic combat system. Players have access to a variety of special attacks and power-ups scattered throughout the levels. These enhancements can dramatically alter gameplay, providing temporary boosts that can turn the tide of battle in your favor. Whether it’s unleashing a devastating laser beam or activating a shield to absorb incoming damage, mastering these abilities adds layers of depth to the combat mechanics. Coupled with fast-paced action, this keeps players engaged and invested in their progress.</p>
+
+    <h2>A Community of Space Warriors</h2>
+    <p>Beyond its thrilling gameplay, Space Shooter X fosters a vibrant online community. Players around the globe share strategies, tips, and experiences, enhancing the overall enjoyment of the game. This community aspect not only builds friendships but also encourages players to improve their skills and tackle challenges together. Engaging with fellow fans through forums and social media platforms can bring new insights and strategies to light, making your journey through the cosmos even more enjoyable.</p>
+
+    <h2>Conclusion: Blast Off into Adventure</h2>
+    <p>In the vast galaxy of online gaming, Space Shooter X stands out as the best space shooting game, offering an unmatched blend of captivating gameplay, challenging levels, intense boss fights, and a supportive community. Whether you are a seasoned gamer or a novice looking for thrills, this game promises an unforgettable experience that will keep you on the edge of your seat. So, gear up, pilot your starship, and prepare for an interstellar adventure unlike any other—head to <a href="https://space-shooter-x.onrender.com" target="_blank">space-shooter-x.onrender.com</a> now and unleash your inner space warrior!</p>
+
+    <a href="https://space-shooter-x.onrender.com" target="_blank" class="cta-button">🚀 Play Space Shooter X Now</a>
+</main>
+
+<footer>
+    &copy; 2025 Space Shooter X. All rights reserved.
+</footer>
+
+<script>
+/* Starfield Animation */
+const canvas = document.getElementById('starfield');
+const ctx = canvas.getContext('2d');
+let stars = [];
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function createStars(count) {
+    stars = [];
+    for (let i = 0; i < count; i++) {
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            speed: 0.5 + Math.random(),
+            size: Math.random() * 2
+        });
+    }
+}
+
+
+
+createStars(200);
+
+function drawStars() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'white';
+    stars.forEach(star => {
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+        star.y += star.speed;
+        if (star.y > canvas.height) {
+            star.x = Math.random() * canvas.width;
+            star.y = 0;
+        }
+    });
+    requestAnimationFrame(drawStars);
+}
+drawStars();
+</script>
+
+</body>
+</html>
