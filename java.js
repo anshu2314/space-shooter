@@ -529,22 +529,76 @@ function drawPowerups() {
 }
 
 function drawPlayer() {
-    // Player jet body
-    ctx.fillStyle = '#00ffff';
-    ctx.fillRect(player.x - player.width / 2, player.y - player.height / 2, player.width, player.height);
+    ctx.save();
     
-    // Jet wings
-    ctx.fillStyle = '#0088ff';
-    ctx.fillRect(player.x - player.width / 2 - 10, player.y, 10, 20);
-    ctx.fillRect(player.x + player.width / 2, player.y, 10, 20);
+    // Engine glow effect (behind ship)
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = 20;
+    const glowIntensity = 0.7 + 0.3 * Math.sin(Date.now() / 100);
+    ctx.globalAlpha = glowIntensity;
     
-    // Jet nose
+    // Engine flames
+    const flameHeight = 15 + 5 * Math.sin(Date.now() / 80);
+    const gradient = ctx.createLinearGradient(0, player.y + player.height / 2, 0, player.y + player.height / 2 + flameHeight);
+    gradient.addColorStop(0, '#00ffff');
+    gradient.addColorStop(0.5, '#0088ff');
+    gradient.addColorStop(1, 'rgba(0, 136, 255, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(player.x - 8, player.y + player.height / 2, 16, flameHeight);
+    
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    
+    // Main ship body with gradient
+    const bodyGradient = ctx.createLinearGradient(0, player.y - player.height / 2, 0, player.y + player.height / 2);
+    bodyGradient.addColorStop(0, '#ffffff');
+    bodyGradient.addColorStop(0.3, '#00ffff');
+    bodyGradient.addColorStop(0.7, '#0088ff');
+    bodyGradient.addColorStop(1, '#004488');
+    ctx.fillStyle = bodyGradient;
+    
+    // Ship hull (sleek design)
+    ctx.beginPath();
+    ctx.moveTo(player.x, player.y - player.height / 2);
+    ctx.lineTo(player.x - player.width / 3, player.y);
+    ctx.lineTo(player.x - player.width / 2, player.y + player.height / 3);
+    ctx.lineTo(player.x, player.y + player.height / 2);
+    ctx.lineTo(player.x + player.width / 2, player.y + player.height / 3);
+    ctx.lineTo(player.x + player.width / 3, player.y);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Wing details
+    ctx.fillStyle = '#0066cc';
+    ctx.beginPath();
+    ctx.moveTo(player.x - player.width / 2 - 8, player.y + 5);
+    ctx.lineTo(player.x - player.width / 2, player.y);
+    ctx.lineTo(player.x - player.width / 2, player.y + 15);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.moveTo(player.x + player.width / 2 + 8, player.y + 5);
+    ctx.lineTo(player.x + player.width / 2, player.y);
+    ctx.lineTo(player.x + player.width / 2, player.y + 15);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Cockpit
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(player.x - 3, player.y - player.height / 2 - 10, 6, 10);
+    ctx.shadowColor = '#ffffff';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y - 5, 8, 0, Math.PI * 2);
+    ctx.fill();
     
-    // Engine glow
-    ctx.fillStyle = '#ff6600';
-    ctx.fillRect(player.x - 5, player.y + player.height / 2, 10, 8);
+    // Weapon hardpoints
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffff00';
+    ctx.fillRect(player.x - 15, player.y + 10, 4, 8);
+    ctx.fillRect(player.x + 11, player.y + 10, 4, 8);
+    
+    ctx.restore();
 }
 
 // Mobile touch control UI - Now using HTML controls instead of canvas drawing
@@ -758,18 +812,77 @@ function shootEnemyBullet(enemy) {
 
 function drawEnemies() {
     enemies.forEach(enemy => {
-        // Enemy body
-        ctx.fillStyle = enemy.color || currentEnemyColor;
-        ctx.fillRect(enemy.x - enemy.width / 2, enemy.y - enemy.height / 2, enemy.width, enemy.height);
-        
-        // Enemy wings
-        ctx.fillStyle = '#880000';
-        ctx.fillRect(enemy.x - enemy.width / 2 - 8, enemy.y, 8, 15);
-        ctx.fillRect(enemy.x + enemy.width / 2, enemy.y, 8, 15);
-        
-        // Enemy cockpit
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(enemy.x - 5, enemy.y - 5, 10, 10);
+        if (enemy.type === 'drone') {
+            // Draw drone as a white glowing orb with a blue ring
+            ctx.save();
+            ctx.shadowColor = '#00e5ff';
+            ctx.shadowBlur = 16;
+            ctx.beginPath();
+            ctx.arc(enemy.x, enemy.y, enemy.width / 2, 0, Math.PI * 2);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#00e5ff';
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            ctx.restore();
+        } else {
+            // Modern enemy design
+            ctx.save();
+            
+            // Enemy glow effect
+            ctx.shadowColor = enemy.color || currentEnemyColor;
+            ctx.shadowBlur = 15;
+            
+            // Main body with gradient
+            const enemyGradient = ctx.createLinearGradient(0, enemy.y - enemy.height / 2, 0, enemy.y + enemy.height / 2);
+            enemyGradient.addColorStop(0, '#444444');
+            enemyGradient.addColorStop(0.5, enemy.color || currentEnemyColor);
+            enemyGradient.addColorStop(1, '#222222');
+            ctx.fillStyle = enemyGradient;
+            
+            // Enemy hull (angular design)
+            ctx.beginPath();
+            ctx.moveTo(enemy.x, enemy.y + enemy.height / 2);
+            ctx.lineTo(enemy.x - enemy.width / 3, enemy.y);
+            ctx.lineTo(enemy.x - enemy.width / 2, enemy.y - enemy.height / 3);
+            ctx.lineTo(enemy.x, enemy.y - enemy.height / 2);
+            ctx.lineTo(enemy.x + enemy.width / 2, enemy.y - enemy.height / 3);
+            ctx.lineTo(enemy.x + enemy.width / 3, enemy.y);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Wing details
+            ctx.fillStyle = '#660000';
+            ctx.beginPath();
+            ctx.moveTo(enemy.x - enemy.width / 2 - 6, enemy.y - 5);
+            ctx.lineTo(enemy.x - enemy.width / 2, enemy.y - 10);
+            ctx.lineTo(enemy.x - enemy.width / 2, enemy.y + 10);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.moveTo(enemy.x + enemy.width / 2 + 6, enemy.y - 5);
+            ctx.lineTo(enemy.x + enemy.width / 2, enemy.y - 10);
+            ctx.lineTo(enemy.x + enemy.width / 2, enemy.y + 10);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Enemy cockpit/core
+            ctx.shadowBlur = 8;
+            ctx.fillStyle = '#ff0000';
+            ctx.beginPath();
+            ctx.arc(enemy.x, enemy.y - 3, 6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Weapon ports
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#ffaa00';
+            ctx.fillRect(enemy.x - 12, enemy.y + 8, 3, 6);
+            ctx.fillRect(enemy.x + 9, enemy.y + 8, 3, 6);
+            
+            ctx.restore();
+        }
     });
 }
 
@@ -877,23 +990,102 @@ function shootBossMissiles() {
 function drawBoss() {
     if (!boss) return;
     
-    // Boss body
-    ctx.fillStyle = '#ff0000';
-    ctx.fillRect(boss.x - boss.width / 2, boss.y - boss.height / 2, boss.width, boss.height);
+    ctx.save();
     
-    // Boss wings
-    ctx.fillStyle = '#880000';
-    ctx.fillRect(boss.x - boss.width / 2 - 20, boss.y, 20, 30);
-    ctx.fillRect(boss.x + boss.width / 2, boss.y, 20, 30);
+    // Boss intimidating glow effect
+    ctx.shadowColor = '#ff0000';
+    ctx.shadowBlur = 25;
+    const bossGlowIntensity = 0.8 + 0.2 * Math.sin(Date.now() / 150);
+    ctx.globalAlpha = bossGlowIntensity;
     
-    // Boss cockpit
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(boss.x - 15, boss.y - 10, 30, 20);
+    // Main boss body with menacing gradient
+    const bossGradient = ctx.createLinearGradient(0, boss.y - boss.height / 2, 0, boss.y + boss.height / 2);
+    bossGradient.addColorStop(0, '#660000');
+    bossGradient.addColorStop(0.3, '#ff0000');
+    bossGradient.addColorStop(0.7, '#cc0000');
+    bossGradient.addColorStop(1, '#330000');
+    ctx.fillStyle = bossGradient;
     
-    // Boss weapons
+    // Boss hull (intimidating angular design)
+    ctx.beginPath();
+    ctx.moveTo(boss.x, boss.y - boss.height / 2);
+    ctx.lineTo(boss.x - boss.width / 3, boss.y - boss.height / 4);
+    ctx.lineTo(boss.x - boss.width / 2, boss.y);
+    ctx.lineTo(boss.x - boss.width / 3, boss.y + boss.height / 3);
+    ctx.lineTo(boss.x, boss.y + boss.height / 2);
+    ctx.lineTo(boss.x + boss.width / 3, boss.y + boss.height / 3);
+    ctx.lineTo(boss.x + boss.width / 2, boss.y);
+    ctx.lineTo(boss.x + boss.width / 3, boss.y - boss.height / 4);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    
+    // Massive wing structures
+    ctx.fillStyle = '#990000';
+    ctx.beginPath();
+    ctx.moveTo(boss.x - boss.width / 2 - 15, boss.y - 10);
+    ctx.lineTo(boss.x - boss.width / 2, boss.y - 20);
+    ctx.lineTo(boss.x - boss.width / 2, boss.y + 25);
+    ctx.lineTo(boss.x - boss.width / 2 - 25, boss.y + 15);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.moveTo(boss.x + boss.width / 2 + 15, boss.y - 10);
+    ctx.lineTo(boss.x + boss.width / 2, boss.y - 20);
+    ctx.lineTo(boss.x + boss.width / 2, boss.y + 25);
+    ctx.lineTo(boss.x + boss.width / 2 + 25, boss.y + 15);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Boss command center/cockpit
+    ctx.shadowColor = '#ffff00';
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = '#ffaa00';
+    ctx.beginPath();
+    ctx.arc(boss.x, boss.y - 8, 12, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Menacing weapon systems
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = '#ff6600';
+    ctx.fillStyle = '#ff3300';
+    
+    // Left weapon array
+    ctx.fillRect(boss.x - 30, boss.y + 15, 8, 20);
+    ctx.fillRect(boss.x - 20, boss.y + 20, 6, 15);
+    
+    // Right weapon array
+    ctx.fillRect(boss.x + 22, boss.y + 15, 8, 20);
+    ctx.fillRect(boss.x + 14, boss.y + 20, 6, 15);
+    
+    // Central heavy cannon
     ctx.fillStyle = '#ff6600';
-    ctx.fillRect(boss.x - 25, boss.y + 20, 10, 15);
-    ctx.fillRect(boss.x + 15, boss.y + 20, 10, 15);
+    ctx.fillRect(boss.x - 4, boss.y + 25, 8, 25);
+    
+    // Engine exhausts with animated glow
+    const engineGlow = 0.6 + 0.4 * Math.sin(Date.now() / 100);
+    ctx.globalAlpha = engineGlow;
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = '#0088ff';
+    ctx.fillRect(boss.x - 25, boss.y + 35, 6, 12);
+    ctx.fillRect(boss.x + 19, boss.y + 35, 6, 12);
+    
+    // Boss health indicator (pulsing red core)
+    if (boss.health < boss.maxHealth * 0.3) {
+        ctx.globalAlpha = 0.7 + 0.3 * Math.sin(Date.now() / 80);
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 30;
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath();
+        ctx.arc(boss.x, boss.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    ctx.restore();
 }
 
 // Bullet functions
@@ -966,47 +1158,127 @@ function updateBullets() {
 
 function drawBullets() {
     // Player bullets
-    ctx.fillStyle = '#00ffff';
     playerBullets.forEach(bullet => {
-        ctx.fillRect(bullet.x - bullet.width / 2, bullet.y, bullet.width, bullet.height);
-        // Glow effect
-        ctx.shadowColor = '#00ffff';
-        ctx.shadowBlur = 10;
-        ctx.fillRect(bullet.x - bullet.width / 2, bullet.y, bullet.width, bullet.height);
-        ctx.shadowBlur = 0;
+        if (bullet.special === 'gaze') {
+            // Use a simpler, more performant style for the high volume of Gaze bullets
+            ctx.fillStyle = '#ffff00'; // A simple, bright yellow
+            ctx.beginPath();
+            ctx.rect(bullet.x - bullet.width / 2, bullet.y, bullet.width, bullet.height);
+            ctx.fill();
+        } else {
+            // Original, more detailed style for standard bullets
+            ctx.save();
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 15;
+            const bulletGradient = ctx.createLinearGradient(0, bullet.y, 0, bullet.y + bullet.height);
+            bulletGradient.addColorStop(0, '#ffffff');
+            bulletGradient.addColorStop(0.5, '#00ffff');
+            bulletGradient.addColorStop(1, '#0088ff');
+            ctx.fillStyle = bulletGradient;
+            ctx.beginPath();
+            ctx.roundRect(bullet.x - bullet.width / 2, bullet.y, bullet.width, bullet.height, bullet.width / 2);
+            ctx.fill();
+            ctx.restore();
+        }
     });
     
     // Enemy bullets
-    ctx.fillStyle = '#ff0000';
     enemyBullets.forEach(bullet => {
-        ctx.fillRect(bullet.x - bullet.width / 2, bullet.y, bullet.width, bullet.height);
-        // Glow effect
+        ctx.save();
         ctx.shadowColor = '#ff0000';
-        ctx.shadowBlur = 8;
-        ctx.fillRect(bullet.x - bullet.width / 2, bullet.y, bullet.width, bullet.height);
-        ctx.shadowBlur = 0;
+        ctx.shadowBlur = 12;
+        
+        // Create gradient for enemy bullets
+        const bulletGradient = ctx.createLinearGradient(0, bullet.y, 0, bullet.y + bullet.height);
+        bulletGradient.addColorStop(0, '#ff6666');
+        bulletGradient.addColorStop(0.5, '#ff0000');
+        bulletGradient.addColorStop(1, '#cc0000');
+        ctx.fillStyle = bulletGradient;
+        
+        // Draw angular enemy bullet
+        ctx.beginPath();
+        ctx.moveTo(bullet.x, bullet.y);
+        ctx.lineTo(bullet.x - bullet.width / 2, bullet.y + bullet.height / 3);
+        ctx.lineTo(bullet.x - bullet.width / 3, bullet.y + bullet.height);
+        ctx.lineTo(bullet.x + bullet.width / 3, bullet.y + bullet.height);
+        ctx.lineTo(bullet.x + bullet.width / 2, bullet.y + bullet.height / 3);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.restore();
     });
     
     // Boss bullets
-    ctx.fillStyle = '#ff6600';
     bossBullets.forEach(bullet => {
-        ctx.fillRect(bullet.x - bullet.width / 2, bullet.y, bullet.width, bullet.height);
-        // Glow effect
+        ctx.save();
         ctx.shadowColor = '#ff6600';
-        ctx.shadowBlur = 12;
-        ctx.fillRect(bullet.x - bullet.width / 2, bullet.y, bullet.width, bullet.height);
-        ctx.shadowBlur = 0;
+        ctx.shadowBlur = 18;
+        
+        // Create gradient for boss bullets
+        const bulletGradient = ctx.createLinearGradient(0, bullet.y, 0, bullet.y + bullet.height);
+        bulletGradient.addColorStop(0, '#ffaa00');
+        bulletGradient.addColorStop(0.5, '#ff6600');
+        bulletGradient.addColorStop(1, '#cc3300');
+        ctx.fillStyle = bulletGradient;
+        
+        // Draw hexagonal boss bullet
+        ctx.beginPath();
+        const centerX = bullet.x;
+        const centerY = bullet.y + bullet.height / 2;
+        const radius = bullet.width / 2;
+        for (let i = 0; i < 6; i++) {
+            const angle = (i * Math.PI) / 3;
+            const x = centerX + radius * Math.cos(angle);
+            const y = centerY + radius * Math.sin(angle);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        
+        // Add energy core
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = '#ffff00';
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius / 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.restore();
     });
     
     // Boss missiles
-    ctx.fillStyle = '#ff00ff';
     bossMissiles.forEach(missile => {
-        ctx.fillRect(missile.x - missile.width / 2, missile.y, missile.width, missile.height);
-        // Glow effect
+        ctx.save();
         ctx.shadowColor = '#ff00ff';
+        ctx.shadowBlur = 20;
+        
+        // Create gradient for missiles
+        const missileGradient = ctx.createLinearGradient(0, missile.y, 0, missile.y + missile.height);
+        missileGradient.addColorStop(0, '#ff66ff');
+        missileGradient.addColorStop(0.5, '#ff00ff');
+        missileGradient.addColorStop(1, '#cc00cc');
+        ctx.fillStyle = missileGradient;
+        
+        // Draw missile with fins
+        ctx.beginPath();
+        ctx.moveTo(missile.x, missile.y);
+        ctx.lineTo(missile.x - missile.width / 3, missile.y + missile.height / 2);
+        ctx.lineTo(missile.x - missile.width / 2, missile.y + missile.height / 2);
+        ctx.lineTo(missile.x - missile.width / 4, missile.y + missile.height);
+        ctx.lineTo(missile.x + missile.width / 4, missile.y + missile.height);
+        ctx.lineTo(missile.x + missile.width / 2, missile.y + missile.height / 2);
+        ctx.lineTo(missile.x + missile.width / 3, missile.y + missile.height / 2);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Add thruster glow
         ctx.shadowBlur = 15;
-        ctx.fillRect(missile.x - missile.width / 2, missile.y, missile.width, missile.height);
-        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#00ffff';
+        ctx.beginPath();
+        ctx.arc(missile.x, missile.y + missile.height, missile.width / 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.restore();
     });
 }
 
@@ -1283,36 +1555,83 @@ function updateSpecialMoves(dt) {
         specialMoves.beam.timer -= dt;
         // Beam effect: destroy enemies in vertical path, damage boss
         let beamX = player.x;
-        // Draw beam
+        
+        // Draw enhanced beam with multiple layers
         ctx.save();
-        ctx.globalAlpha = 0.7 + 0.3*Math.sin(Date.now()/80);
-        let grad = ctx.createLinearGradient(beamX, player.y, beamX, 0);
-        grad.addColorStop(0, '#fff176');
-        grad.addColorStop(0.2, '#00ffff');
-        grad.addColorStop(1, '#fff');
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = 18 + 6*Math.sin(Date.now()/120);
+        
+        // Outer glow
+        ctx.globalAlpha = 0.3 + 0.2 * Math.sin(Date.now() / 60);
+        ctx.shadowColor = '#00ffff';
+        ctx.shadowBlur = 40;
+        let outerGrad = ctx.createLinearGradient(beamX, player.y, beamX, 0);
+        outerGrad.addColorStop(0, '#ffffff');
+        outerGrad.addColorStop(0.1, '#00ffff');
+        outerGrad.addColorStop(0.5, '#0088ff');
+        outerGrad.addColorStop(1, 'rgba(0, 136, 255, 0.1)');
+        ctx.strokeStyle = outerGrad;
+        ctx.lineWidth = 35 + 10 * Math.sin(Date.now() / 100);
         ctx.beginPath();
-        ctx.moveTo(beamX, player.y - player.height/2);
+        ctx.moveTo(beamX, player.y - player.height / 2);
         ctx.lineTo(beamX, 0);
         ctx.stroke();
+        
+        // Middle beam
+        ctx.globalAlpha = 0.8 + 0.2 * Math.sin(Date.now() / 80);
+        ctx.shadowBlur = 20;
+        let midGrad = ctx.createLinearGradient(beamX, player.y, beamX, 0);
+        midGrad.addColorStop(0, '#ffffff');
+        midGrad.addColorStop(0.2, '#00ffff');
+        midGrad.addColorStop(0.6, '#0099ff');
+        midGrad.addColorStop(1, '#ffffff');
+        ctx.strokeStyle = midGrad;
+        ctx.lineWidth = 20 + 5 * Math.sin(Date.now() / 120);
+        ctx.beginPath();
+        ctx.moveTo(beamX, player.y - player.height / 2);
+        ctx.lineTo(beamX, 0);
+        ctx.stroke();
+        
+        // Core beam
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 10;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 8 + 3 * Math.sin(Date.now() / 150);
+        ctx.beginPath();
+        ctx.moveTo(beamX, player.y - player.height / 2);
+        ctx.lineTo(beamX, 0);
+        ctx.stroke();
+        
+        // Energy particles along the beam
+        for (let i = 0; i < 15; i++) {
+            let particleY = player.y - (i * 40) - Math.random() * 20;
+            let particleX = beamX + (Math.random() - 0.5) * 30;
+            ctx.globalAlpha = 0.6 + 0.4 * Math.random();
+            ctx.fillStyle = i % 2 === 0 ? '#ffffff' : '#00ffff';
+            ctx.beginPath();
+            ctx.arc(particleX, particleY, 2 + Math.random() * 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
         ctx.restore();
-        // Destroy enemies in path
-        for (let i = enemies.length-1; i >= 0; i--) {
-            if (Math.abs(enemies[i].x - beamX) < 30) {
-                createExplosion(enemies[i].x, enemies[i].y, 25);
+        
+        // Destroy enemies in path with enhanced effect
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            if (Math.abs(enemies[i].x - beamX) < 35) {
+                createExplosion(enemies[i].x, enemies[i].y, 30);
                 enemies.splice(i, 1);
-                score += 100;
+                score += 150;
+                registerKill();
             }
         }
-        // Damage boss
-        if (boss && Math.abs(boss.x - beamX) < boss.width/2+10) {
-            if (!boss._beamDmgTimer || Date.now() - boss._beamDmgTimer > 1000) {
-                boss.health -= 10;
+        
+        // Damage boss with enhanced effect
+        if (boss && Math.abs(boss.x - beamX) < boss.width / 2 + 15) {
+            if (!boss._beamDmgTimer || Date.now() - boss._beamDmgTimer > 500) {
+                boss.health -= 15;
                 boss._beamDmgTimer = Date.now();
                 updateBossHealth();
+                createExplosion(boss.x + (Math.random() - 0.5) * boss.width, boss.y + (Math.random() - 0.5) * boss.height, 20);
                 if (boss.health <= 0) {
-                    createExplosion(boss.x, boss.y, 50);
+                    createExplosion(boss.x, boss.y, 60);
                     boss = null;
                     bossDefeated = true;
                     document.getElementById('bossHealth').style.display = 'none';
@@ -1320,6 +1639,7 @@ function updateSpecialMoves(dt) {
                 }
             }
         }
+        
         if (specialMoves.beam.timer <= 0) {
             specialMoves.beam.active = false;
         }
@@ -1874,70 +2194,3 @@ window.addEventListener('DOMContentLoaded', () => {
         controlModal.style.display = 'block';
     }
 });
-
-function activateBeam() {
-    const now = Date.now();
-    if (now - specialMoves.beam.lastUsed < specialMoves.beam.cooldown || specialMoves.beam.active) return;
-    
-    specialMoves.beam.active = true;
-    specialMoves.beam.timer = specialMoves.beam.duration;
-    specialMoves.beam.lastUsed = now;
-    
-    // Beam effect: fire a powerful vertical beam
-    playerBullets.push({
-        x: player.x,
-        y: 0,
-        width: 20,
-        height: canvas.height,
-        damage: 50,
-        special: 'beam',
-        color: '#00ffff',
-        duration: 1000
-    });
-}
-
-function activateGaze() {
-    const now = Date.now();
-    if (now - specialMoves.gaze.lastUsed < specialMoves.gaze.cooldown || specialMoves.gaze.active) return;
-    
-    specialMoves.gaze.active = true;
-    specialMoves.gaze.timer = specialMoves.gaze.duration;
-    specialMoves.gaze.lastUsed = now;
-    
-    // Gaze effect: rapid fire in a cone
-    for (let i = 0; i < 5; i++) {
-        setTimeout(() => {
-            if (!gameRunning) return;
-            const angle = (i - 2) * 0.2; // Spread bullets in a cone
-            playerBullets.push({
-                x: player.x,
-                y: player.y,
-                vx: Math.sin(angle) * 5,
-                vy: -10,
-                width: 8,
-                height: 16,
-                damage: 10,
-                special: 'gaze',
-                color: '#ffff00',
-                lifetime: 1000
-            });
-        }, i * 100);
-    }
-}
-
-function activateNova() {
-    const now = Date.now();
-    if (now - specialMoves.nova.lastUsed < specialMoves.nova.cooldown || specialMoves.nova.active) return;
-    
-    specialMoves.nova.active = true;
-    specialMoves.nova.timer = specialMoves.nova.duration;
-    specialMoves.nova.lastUsed = now;
-    
-    // Nova effect: damage all enemies on screen
-    enemies.forEach(enemy => {
-        enemy.health -= 30;
-    });
-    
-    // Visual effect
-    createExplosion(player.x, player.y, 100);
-}
