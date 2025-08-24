@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3 Essential Tips to Dominate in Space Shooter X | Game Guide</title>
     <meta name="description" content="Become a pro pilot in Space Shooter X with these three essential tips. Learn how to use special moves, master the combo system, and survive longer against alien waves.">
-    <link rel="canonical" href="https://space-shooter-x.onrender.com/blog2.html" />
+    <link rel="canonical" href="https://space-shooter-x.onrender.com/blog1.html" />
     <style>
         body {
             background: radial-gradient(ellipse at center, #0f1419 0%, #000000 100%);
@@ -57,6 +57,26 @@
         .back-link:hover {
             transform: scale(1.05);
         }
+        .social-share {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #00ffff44;
+            text-align: center;
+        }
+        .social-share h3 {
+            color: #e0e0e0;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        .share-btn {
+            display: inline-block;
+            margin: 0 10px;
+            padding: 8px 15px;
+            border-radius: 5px;
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -90,6 +110,21 @@
         <p>By mastering these three tips, you'll see your scores climb and your survival time increase. Now get back in there and show those aliens who's boss!</p>
 
         <a href="/index.html" class="back-link">Back to the Game</a>
+
+        <div class="social-share">
+            <h3>Enjoyed the tips? Share them!</h3>
+            <a href="#" id="share-twitter" class="share-btn" style="background-color: #1DA1F2;">Twitter</a>
+            <a href="#" id="share-facebook" class="share-btn" style="background-color: #1877F2;">Facebook</a>
+            <a href="#" id="share-reddit" class="share-btn" style="background-color: #FF4500;">Reddit</a>
+        </div>
     </div>
+    <script>
+        const pageUrl = encodeURIComponent(window.location.href);
+        const pageTitle = encodeURIComponent(document.title);
+
+        document.getElementById('share-twitter').href = `https://twitter.com/intent/tweet?url=${pageUrl}&text=${pageTitle}`;
+        document.getElementById('share-facebook').href = `https://www.facebook.com/sharer/sharer.php?u=${pageUrl}`;
+        document.getElementById('share-reddit').href = `https://www.reddit.com/submit?url=${pageUrl}&title=${pageTitle}`;
+    </script>
 </body>
 </html>
