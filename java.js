@@ -2,6 +2,310 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+// Sound Manager using Web Audio API (no sound files needed)
+const soundManager = {
+    audioContext: null,
+    masterGain: null,
+    musicGain: null,
+    musicSchedulerId: null,
+    currentMusic: null,
+    musicVolume: 0.3, // Volume for procedural music
+
+    // Global state
+    muted: false,
+
+    init() {
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            this.masterGain = this.audioContext.createGain();
+            this.masterGain.gain.value = 1;
+            this.masterGain.connect(this.audioContext.destination);
+
+            // Add a separate gain node for music
+            this.musicGain = this.audioContext.createGain();
+            this.musicGain.gain.value = this.musicVolume;
+            this.musicGain.connect(this.masterGain);
+
+        } catch (e) {
+            console.error("Web Audio API is not supported. No sound will be played.");
+            this.audioContext = null;
+        }
+    },
+
+    playMusic(name) {
+        if (!this.audioContext || (this.currentMusic && this.currentMusic.name === name)) {
+            return; // Already playing this track or no audio context
+        }
+        this.stopMusic(); // Stop any previous music
+
+        this.currentMusic = {
+            name: name,
+            sequence: this._getMusicSequence(name),
+            noteIndex: 0,
+        };
+
+        const tempo = this.currentMusic.sequence.tempo;
+        const noteDuration = 60 / tempo; // duration of a quarter note
+
+        this.musicSchedulerId = setInterval(() => {
+            if (this.muted || !this.audioContext) return;
+
+            const now = this.audioContext.currentTime;
+            const note = this.currentMusic.sequence.notes[this.currentMusic.noteIndex];
+            
+            if (note > 0) { // 0 represents a rest
+                this._playNote(note, now, noteDuration * 0.9);
+            }
+
+            this.currentMusic.noteIndex = (this.currentMusic.noteIndex + 1) % this.currentMusic.sequence.notes.length;
+
+        }, noteDuration * 1000);
+    },
+
+    stopMusic() {
+        if (this.musicSchedulerId) {
+            clearInterval(this.musicSchedulerId);
+            this.musicSchedulerId = null;
+        }
+        this.currentMusic = null;
+    },
+
+    _playNote(freq, time, duration) {
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(this.musicGain);
+
+        osc.type = this.currentMusic.sequence.waveType;
+        osc.frequency.setValueAtTime(freq, time);
+        
+        // Simple ADSR-like envelope
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(1, time + duration * 0.1); // Attack
+        gain.gain.exponentialRampToValueAtTime(0.5, time + duration * 0.5); // Decay/Sustain
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + duration); // Release
+
+        osc.start(time);
+        osc.stop(time + duration);
+    },
+
+    _getMusicSequence(name) {
+        // Note frequencies
+        const C4=261.63, Eb4=311.13, G4=392.00, Bb4=466.16;
+        const C5=523.25, E5=659.25, G5=783.99;
+        const C3=130.81, Eb3=155.56, G3=196.00;
+
+        const sequences = {
+            boss: { notes: [G3, 0, Eb3, 0, G3, 0, C3, 0, G3, 0, Eb3, 0, C3, 0, Eb3, 0], tempo: 140, waveType: 'sawtooth' },
+            bonus: { notes: [C5, G5, E5, G5, C5, G5, E5, G5], tempo: 160, waveType: 'triangle' },
+            background: { notes: [C4, Eb4, G4, Bb4, G4, Eb4, C4, 0], tempo: 120, waveType: 'sine' }
+        };
+        return sequences[name] || sequences.background;
+    },
+
+    play(type) {
+        if (!this.audioContext || this.muted) return;
+        if (this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
+        }
+        
+        const now = this.audioContext.currentTime;
+        
+        switch(type) {
+            case 'shoot': this._createShootSound(now); break;
+            case 'explosion': this._createExplosionSound(now); break;
+            case 'playerHit': this._createPlayerHitSound(now); break;
+            case 'powerup': this._createPowerupSound(now); break;
+            case 'gameOver': this._createGameOverSound(now); break;
+            case 'beam': this._createBeamSound(now); break;
+            case 'nova': this._createNovaSound(now); break;
+            case 'bossDefeat': this._createBossDefeatSound(now); break;
+        }
+    },
+
+    _createShootSound(now) {
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1200, now);
+        osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+        
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
+        
+        osc.start(now);
+        osc.stop(now + 0.1);
+    },
+
+    _createExplosionSound(now) {
+        // Low-frequency thump
+        const thump = this.audioContext.createOscillator();
+        const thumpGain = this.audioContext.createGain();
+        thump.connect(thumpGain);
+        thumpGain.connect(this.masterGain);
+        thump.type = 'sine';
+        thump.frequency.setValueAtTime(120, now);
+        thump.frequency.exponentialRampToValueAtTime(30, now + 0.3);
+        thumpGain.gain.setValueAtTime(0.6, now);
+        thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        thump.start(now);
+        thump.stop(now + 0.3);
+
+        // Noise burst
+        const noiseSource = this.audioContext.createBufferSource();
+        const bufferSize = this.audioContext.sampleRate * 0.3; // Shorter
+        const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+        const output = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            output[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2); // Faster decay
+        }
+        noiseSource.buffer = buffer;
+        const noiseGain = this.audioContext.createGain();
+        noiseGain.gain.value = 0.4;
+        noiseSource.connect(noiseGain);
+        noiseGain.connect(this.masterGain);
+        noiseSource.start(now);
+    },
+
+    _createPlayerHitSound(now) {
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+        
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+        
+        osc.start(now);
+        osc.stop(now + 0.2);
+    },
+
+    _createPowerupSound(now) {
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        
+        osc.type = 'triangle';
+        gain.gain.setValueAtTime(0.4, now);
+        
+        const t = 0.08;
+        osc.frequency.setValueAtTime(523.25, now); // C5
+        osc.frequency.setValueAtTime(659.25, now + t); // E5
+        osc.frequency.setValueAtTime(783.99, now + t*2); // G5
+        
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + t*3);
+        
+        osc.start(now);
+        osc.stop(now + t*3);
+    },
+
+    _createGameOverSound(now) {
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.5, now);
+        
+        const t = 0.4;
+        osc.frequency.setValueAtTime(440, now); // A4
+        osc.frequency.setValueAtTime(329.63, now + t); // E4
+        osc.frequency.setValueAtTime(220, now + t*2); // A3
+        
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + t*3);
+        
+        osc.start(now);
+        osc.stop(now + t*3);
+    },
+    
+    _createNovaSound(now) {
+        const noiseSource = this.audioContext.createBufferSource();
+        const biquadFilter = this.audioContext.createBiquadFilter();
+        const gainNode = this.audioContext.createGain();
+        const bufferSize = this.audioContext.sampleRate * 0.8; // Longer
+        const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+        const output = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) { output[i] = Math.random() * 2 - 1; }
+        noiseSource.buffer = buffer;
+        
+        biquadFilter.type = 'bandpass';
+        biquadFilter.frequency.setValueAtTime(200, now);
+        biquadFilter.frequency.exponentialRampToValueAtTime(6000, now + 0.6); // Wider sweep
+        biquadFilter.Q.value = 5; // More resonant
+        
+        gainNode.gain.setValueAtTime(0.7, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
+        
+        noiseSource.connect(biquadFilter);
+        biquadFilter.connect(gainNode);
+        gainNode.connect(this.masterGain);
+        noiseSource.start(now);
+        noiseSource.stop(now + 0.8);
+    },
+    
+    _createBeamSound(now) {
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.exponentialRampToValueAtTime(800, now + 0.4);
+        
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+        
+        osc.start(now);
+        osc.stop(now + 0.5);
+    },
+    
+    _createBossDefeatSound(now) {
+        // Triumphant arpeggio
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.type = 'square';
+        gain.gain.setValueAtTime(0.3, now);
+        const t = 0.1;
+        osc.frequency.setValueAtTime(261.63, now); // C4
+        osc.frequency.setValueAtTime(329.63, now + t); // E4
+        osc.frequency.setValueAtTime(392.00, now + t*2); // G4
+        osc.frequency.setValueAtTime(523.25, now + t*3); // C5
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + t*4);
+        osc.start(now);
+        osc.stop(now + t*4);
+
+        // Chain explosions
+        setTimeout(() => this.audioContext && this._createExplosionSound(this.audioContext.currentTime), 200);
+        setTimeout(() => this.audioContext && this._createExplosionSound(this.audioContext.currentTime), 450);
+        setTimeout(() => this.audioContext && this._createExplosionSound(this.audioContext.currentTime), 700);
+    },
+
+    toggleMute() {
+        if (!this.audioContext) return true;
+        if (this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
+        }
+        this.muted = !this.muted;
+
+        // This single line mutes/unmutes both SFX and the procedural music
+        this.masterGain.gain.setValueAtTime(this.muted ? 0 : 1, this.audioContext.currentTime);
+
+        return this.muted;
+    }
+};
+
 // Control mode declaration (moved to top to prevent initialization error)
 let controlMode = null; // 'keyboard', 'mouse', or 'mobile'
 
@@ -121,6 +425,9 @@ let boss = null;
 // Bonus round state
 let bonusRoundActive = false;
 let bonusRoundTimer = 0;
+
+// High Score
+let highScore = parseInt(localStorage.getItem('spaceShooterXHighScore')) || 0;
 
 // Control selection modal logic - will be initialized in DOMContentLoaded
 let controlModal, keyboardBtn, mouseBtn, mobileBtn, instructionsDiv, restartBtn;
@@ -337,6 +644,8 @@ function restartGame() {
         cancelAnimationFrame(animationFrameId);
         animationFrameId = null;
     }
+    // Start or resume background music
+    soundManager.playMusic('background');
     gameRunning = true;
     score = 0;
     enemiesKilled = 0;
@@ -458,6 +767,16 @@ function showBossHealth() {
 
 function gameOver() {
     gameRunning = false;
+    soundManager.stopMusic();
+    soundManager.play('gameOver');
+
+    // Check for new high score
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('spaceShooterXHighScore', highScore);
+        updateHighScoreDisplay();
+    }
+
     document.getElementById('gameOver').style.display = 'block';
     document.getElementById('restartBtn').style.display = 'block';
 }
@@ -500,6 +819,7 @@ function updatePlayer() {
 }
 
 function shootPlayerBullet() {
+    soundManager.play('shoot');
     playerBullets.push({
         x: player.x,
         y: player.y - player.height / 2,
@@ -907,6 +1227,7 @@ function spawnBoss() {
         moveDir: 1,
         moveSpeed: 1
     };
+    soundManager.playMusic('boss');
     bossSpawned = true;
     showBossHealth();
 }
@@ -1284,6 +1605,7 @@ function drawBullets() {
 
 // Explosion effects
 function createExplosion(x, y, size = 20) {
+    soundManager.play('explosion');
     explosions.push({
         x: x,
         y: y,
@@ -1393,6 +1715,7 @@ function checkCollisions() {
                 bossDefeated = true;
                 document.getElementById('bossHealth').style.display = 'none';
                 score += 1000;
+                soundManager.play('bossDefeat');
                 // Clear all boss projectiles so player can't be hit during transition
                 bossBullets = [];
                 bossMissiles = [];
@@ -1422,6 +1745,7 @@ function checkCollisions() {
         const bullet = enemyBullets[i];
         if (checkCollision(bullet, player)) {
             if (!bonusRoundActive) {
+                soundManager.play('playerHit');
                 let damage = bullet.damage;
                 if (defenseBoostStacks > 0) {
                     damage = Math.round(damage * (1 - 0.07 * defenseBoostStacks));
@@ -1440,6 +1764,7 @@ function checkCollisions() {
         const bullet = bossBullets[i];
         if (checkCollision(bullet, player)) {
             if (!bonusRoundActive) {
+                soundManager.play('playerHit');
                 let damage = bullet.damage;
                 if (defenseBoostStacks > 0) {
                     damage = Math.round(damage * (1 - 0.07 * defenseBoostStacks));
@@ -1458,6 +1783,7 @@ function checkCollisions() {
         const missile = bossMissiles[i];
         if (checkCollision(missile, player)) {
             if (!bonusRoundActive) {
+                soundManager.play('playerHit');
                 let damage = missile.damage;
                 if (defenseBoostStacks > 0) {
                     damage = Math.round(damage * (1 - 0.07 * defenseBoostStacks));
@@ -1515,6 +1841,7 @@ document.addEventListener('keydown', function(e) {
 function activateBeam() {
     let now = Date.now();
     if (now - specialMoves.beam.lastUsed < specialMoves.beam.cooldown || specialMoves.beam.active) return;
+    soundManager.play('beam');
     specialMoves.beam.active = true;
     specialMoves.beam.timer = specialMoves.beam.duration;
     specialMoves.beam.lastUsed = now;
@@ -1529,6 +1856,7 @@ function activateGaze() {
 function activateNova() {
     let now = Date.now();
     if (now - specialMoves.nova.lastUsed < specialMoves.nova.cooldown || specialMoves.nova.active) return;
+    soundManager.play('nova');
     specialMoves.nova.active = true;
     specialMoves.nova.timer = specialMoves.nova.duration;
     specialMoves.nova.lastUsed = now;
@@ -1722,6 +2050,7 @@ function registerKill() {
 const bonusBar = document.getElementById('bonusBar');
 function startBonusRound() {
     bonusRoundActive = true;
+    soundManager.playMusic('bonus');
     bonusRoundTimer = 20000;
     bonusBar.style.opacity = '1';
     setTimeout(() => {
@@ -1730,6 +2059,7 @@ function startBonusRound() {
 }
 function endBonusRound() {
     bonusRoundActive = false;
+    soundManager.playMusic('background');
     bonusBar.style.opacity = '0';
 }
 
@@ -1857,6 +2187,7 @@ let attackBoostStacks = 0;
 let defenseBoostStacks = 0;
 
 function collectPowerup(type) {
+    soundManager.play('powerup');
     if (type === 'sword') {
         if (attackBoostStacks < 10) attackBoostStacks++;
         // Optionally show floating text or play sound
@@ -1972,6 +2303,7 @@ if (
         // Check boss collision (unchanged)
         if (boss && checkCollision(bullet, boss)) {
             boss.health -= (comboActive ? 15 : 10);
+            soundManager.play('playerHit'); // Boss hit sound
             playerBullets.splice(i, 1);
             updateBossHealth();
             if (boss.health <= 0) {
@@ -1980,6 +2312,8 @@ if (
                 bossDefeated = true;
                 document.getElementById('bossHealth').style.display = 'none';
                 score += 1000;
+                soundManager.playMusic('background'); // Switch back to normal music
+                soundManager.play('bossDefeat');
                 // Clear all boss projectiles so player can't be hit during transition
                 bossBullets = [];
                 bossMissiles = [];
@@ -2009,6 +2343,7 @@ if (
         const bullet = enemyBullets[i];
         if (checkCollision(bullet, player)) {
             if (!bonusRoundActive) {
+                soundManager.play('playerHit');
                 let damage = bullet.damage;
                 if (defenseBoostStacks > 0) {
                     damage = Math.round(damage * (1 - 0.07 * defenseBoostStacks));
@@ -2027,6 +2362,7 @@ if (
         const bullet = bossBullets[i];
         if (checkCollision(bullet, player)) {
             if (!bonusRoundActive) {
+                soundManager.play('playerHit');
                 let damage = bullet.damage;
                 if (defenseBoostStacks > 0) {
                     damage = Math.round(damage * (1 - 0.07 * defenseBoostStacks));
@@ -2045,6 +2381,7 @@ if (
         const missile = bossMissiles[i];
         if (checkCollision(missile, player)) {
             if (!bonusRoundActive) {
+                soundManager.play('playerHit');
                 let damage = missile.damage;
                 if (defenseBoostStacks > 0) {
                     damage = Math.round(damage * (1 - 0.07 * defenseBoostStacks));
@@ -2131,8 +2468,19 @@ function gameLoop() {
     animationFrameId = requestAnimationFrame(gameLoop);
 };
 
+function updateHighScoreDisplay() {
+    const highScoreEl = document.getElementById('highScoreDisplay');
+    if (highScoreEl) {
+        highScoreEl.textContent = `High Score: ${highScore}`;
+    }
+}
+
 // Make sure the control modal is visible when the page loads
 window.addEventListener('DOMContentLoaded', () => {
+    // Initialize the sound manager.
+    // Sounds and music will be generated on the fly, no loading needed.
+    soundManager.init();
+
     // Initialize DOM elements
     controlModal = document.getElementById('controlModal');
     keyboardBtn = document.getElementById('keyboardBtn');
@@ -2140,11 +2488,23 @@ window.addEventListener('DOMContentLoaded', () => {
     mobileBtn = document.getElementById('mobileBtn');
     instructionsDiv = document.querySelector('.instructions');
     restartBtn = document.getElementById('restartBtn');
+    const muteBtn = document.getElementById('muteBtn'); // This was missing
+
+    // Initial display of high score
+    updateHighScoreDisplay();
     
     // Set up event listeners
     if (restartBtn) {
         restartBtn.addEventListener('click', () => {
             restartGame();
+        });
+    }
+    
+    // Mute button logic
+    if (muteBtn) { // This was missing
+        muteBtn.addEventListener('click', () => {
+            const isMuted = soundManager.toggleMute();
+            muteBtn.textContent = isMuted ? '🔇' : '🔊';
         });
     }
     
@@ -2171,7 +2531,7 @@ window.addEventListener('DOMContentLoaded', () => {
             controlMode = 'mobile';
             controlModal.style.display = 'none';
             instructionsDiv.textContent = 'Use joystick to move | Tap shoot button to fire | Tap special buttons for abilities';
-            setupMobileControls();
+            setupMobileControls(); // This was in the wrong place
             restartGame();
         });
     }
