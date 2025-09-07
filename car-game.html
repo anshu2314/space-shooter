@@ -189,10 +189,34 @@
             <p><strong>Please Note:</strong> This is an embedded game from an external website. It was likely created using older technology (like Adobe Flash) and may not load or function correctly on all modern browsers.</p>
         </div>
         <div class="game-wrapper">
-            <iframe id="gameFrame" src="http://media.boyslife.org/onlinegames/nitroderby/" title="3D Nitro Derby Embedded Game"></iframe>
-            <div class="click-blocker" title="External links on this embedded game are disabled to keep you on Space Shooter X."></div>
+            <div class="game-unavailable">
+                <h3>Game Currently Unavailable</h3>
+                <p>Unfortunately, the source for "Nitro Derby" is no longer available over a secure connection (HTTPS) and cannot be loaded. We are looking for a replacement. Thank you for your understanding!</p>
+            </div>
         </div>
         <a href="/index.html" class="back-link">&laquo; Return to Space Shooter X</a>
     </div>
+    <style>
+        .game-unavailable {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 600px;
+            border: 3px solid #ff9800;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(255, 152, 0, 0.4);
+            background: rgba(0,0,0,0.5);
+            text-align: center;
+            padding: 20px;
+        }
+        .game-unavailable h3 {
+            font-family: 'Orbitron', sans-serif;
+            color: #ffcc00;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+    </style>
 </body>
 </html>
