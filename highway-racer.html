@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- SEO Enhancements -->
+    <title>Play Free 3D Car Racing Game Online | Unblocked Highway Racer | Space Shooter X</title>
+    <meta name="description" content="Get behind the wheel in our free 3D car racing game. Weave through traffic, dodge obstacles, and race for a high score in this fast-paced highway racer. Play instantly in your browser, no download required. Perfect unblocked car game for a quick session.">
+    <meta name="keywords" content="3d car game, car racing game, free car game, online car game, browser car game, unblocked car game, highway racer, play car game online, no download games, gdevelop games, space shooter x games">
+    <link rel="canonical" href="https://space-shooter-x.onrender.com/highway-racer.html" />
+
+    <!-- JSON-LD Schema for SEO -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "VideoGame",
+      "name": "3D Highway Racer Car Game",
+      "url": "https://space-shooter-x.onrender.com/highway-racer.html",
+      "description": "A free-to-play, browser-based 3D car racing game. Weave through highway traffic and race for the highest score. Embedded for instant play.",
+      "applicationCategory": "Game",
+      "genre": ["Racing", "Arcade"],
+      "playMode": "SinglePlayer",
+      "gamePlatform": "PC",
+      "operatingSystem": "Web browser",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "ansh&abhi"
+      }
+    }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Re-using styles from your other pages for consistency */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: radial-gradient(ellipse at center, #0f1419 0%, #000000 100%);
+            font-family: 'Exo 2', sans-serif;
+            color: #e0e0e0;
+            line-height: 1.8;
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            padding: 20px;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 200%;
+            background: 
+                radial-gradient(2px 2px at 20px 30px, #eee, transparent),
+                radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
+                radial-gradient(1px 1px at 90px 40px, #fff, transparent),
+                radial-gradient(1px 1px at 130px 80px, rgba(255,255,255,0.6), transparent),
+                radial-gradient(2px 2px at 160px 30px, #ddd, transparent);
+            background-repeat: repeat;
+            background-size: 200px 100px;
+            animation: sparkle 20s linear infinite;
+            z-index: -2;
+            opacity: 0.6;
+        }
+        @keyframes sparkle {
+            from { transform: translate(0, 0); }
+            to { transform: translate(-200px, -100px); }
+        }
+        .container {
+            max-width: 900px;
+            width: 100%;
+            padding: 40px;
+            background: rgba(11, 15, 26, 0.7);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            animation: fadeIn 1s ease-out;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            color: #ffd700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+            margin-bottom: 20px;
+            border-bottom: 2px solid rgba(0, 255, 255, 0.3);
+            padding-bottom: 10px;
+        }
+        p {
+            margin-bottom: 1.5em;
+            font-size: 1.1rem;
+            color: #c0c0c0;
+        }
+        strong {
+            color: #00e5ff;
+            font-weight: 600;
+        }
+        .game-wrapper {
+            position: relative;
+            width: 100%;
+            /* The height will be determined by the iframe inside */
+        }
+        #gameFrame {
+            display: block; /* Removes bottom space under iframe */
+            width: 100%;
+            height: 600px;
+            border: 3px solid #00ffff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+        }
+        .click-blocker {
+            position: absolute;
+            bottom: 3px; /* Align with the bottom of the iframe, considering the border */
+            left: 3px;
+            right: 3px;
+            height: 55px; /* Block the bottom 55px of the game area */
+            z-index: 2;
+            cursor: not-allowed;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+        .click-blocker::after {
+            content: 'External links are disabled';
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.85);
+            color: #ffcc00;
+            padding: 5px 12px;
+            border-radius: 5px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none; /* The tooltip itself shouldn't be clickable */
+        }
+        .click-blocker:hover::after {
+            opacity: 1;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 25px;
+            background: linear-gradient(135deg, #00e5ff, #0088ff);
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 50px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 230, 255, 0.2);
+        }
+        .back-link:hover {
+            transform: scale(1.05) translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 230, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>3D Highway Racer</h1>
+        <p>
+            Get ready to burn rubber in this fast-paced <strong>3D car racing game</strong>. Your mission is to drive as far as you can, weaving through traffic and avoiding other cars. Play this <strong>unblocked car game</strong> instantly in your browser for some high-speed fun!
+        </p>
+        <div class="game-wrapper">
+            <iframe id="gameFrame" src="https://game-previews.gdevelop.io/1757416226933-342287/index.html" title="3D Highway Racer Embedded Game"></iframe>
+            <div class="click-blocker" title="External links on this embedded game are disabled to keep you on Space Shooter X."></div>
+        </div>
+        <a href="/index.html" class="back-link">&laquo; Return to Space Shooter X</a>
+    </div>
+</body>
+</html>
