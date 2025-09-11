@@ -1,6 +1,6 @@
 // Game Canvas Setup
 const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+let ctx = canvas.getContext('2d');
 
 // Sound Manager using Web Audio API (no sound files needed)
 const soundManager = {
@@ -120,7 +120,38 @@ const soundManager = {
             case 'beam': this._createBeamSound(now); break;
             case 'nova': this._createNovaSound(now); break;
             case 'bossDefeat': this._createBossDefeatSound(now); break;
+            case 'missileLaunch': this._createMissileLaunchSound(now); break;
+            case 'voidPulse': this._createVoidPulseSound(now); break;
         }
+        if (type === 'temporalShield') this._createShieldSound(now);
+    },
+
+    _createShieldSound(now) {
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.exponentialRampToValueAtTime(400, now + 0.5);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.5, now + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.0);
+        osc.start(now);
+        osc.stop(now + 1.0);
+    },
+
+    _createMissileLaunchSound(now) {
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(600, now + 0.4);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+        osc.start(now); osc.stop(now + 0.4);
     },
 
     _createShootSound(now) {
@@ -292,6 +323,27 @@ const soundManager = {
         setTimeout(() => this.audioContext && this._createExplosionSound(this.audioContext.currentTime), 700);
     },
 
+    _createVoidPulseSound(now) {
+        // Low-frequency teleport 'whoosh'
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.8);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.6, now + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
+        osc.start(now);
+        osc.stop(now + 0.8);
+
+        // High-frequency crackle for the wave
+        setTimeout(() => {
+            if (this.audioContext) this._createNovaSound(this.audioContext.currentTime);
+        }, 100);
+    },
+
     toggleMute() {
         if (!this.audioContext) return true;
         if (this.audioContext.state === 'suspended') {
@@ -364,6 +416,8 @@ setupCanvas();
 let gameRunning = true;
 let score = 0;
 let enemiesKilled = 0;
+let credits = 0;
+let playerShipId = 'ship1';
 let bossSpawned = false;
 let bossDefeated = false;
 let nextBossScore = 3000;
@@ -371,32 +425,72 @@ let nextBossScore = 3000;
 let comboActive = false;
 let comboTimer = 0;
 
-// Sp cial3M0ves
+// Special Moves
 let specialMoves = {
     beam: {
         cooldown: 20000, // ms
         duration: 5000, // ms
         lastUsed: -Infinity,
         active: false,
-        timer: 0
+        timer: 0,
+        name: 'Beam Attack',
+        description: 'Fires a continuous, powerful laser beam.'
     },
     gaze: {
         cooldown: 20000,
         duration: 7000,
         lastUsed: -Infinity,
         active: false,
-        timer: 0
+        timer: 0,
+        name: 'Gaze Burst',
+        description: 'Unleashes a wide cone of projectiles.'
     },
-    nova: {
-        cooldown: 30000,
-        duration: 1000, // pulse is instant, but effect lasts for 1s for animation
+    missileStrike: { // Replaces homingMissiles
+        cooldown: 25000,
+        duration: 10000,
         lastUsed: -Infinity,
         active: false,
-        timer: 0
+        timer: 0,
+        name: 'Missile Strike',
+        description: 'Launches missiles that seek out enemies.'
+    },
+    plasmaWave: { // Replaces nova
+        cooldown: 30000,
+        duration: 1000,
+        lastUsed: -Infinity,
+        active: false,
+        timer: 0,
+        name: 'Plasma Wave',
+        description: 'A defensive blast that clears projectiles.'
+    },
+    energyShield: { // Replaces temporalShield
+        cooldown: 35000,
+        duration: 6000,
+        lastUsed: -Infinity,
+        active: false,
+        timer: 0,
+        name: 'Energy Shield',
+        description: 'Grants invincibility and slows nearby projectiles.'
+    },
+    teleportDash: {
+        cooldown: 30000,
+        duration: 1500, // Duration of the wave effect
+        lastUsed: -Infinity,
+        active: false,
+        timer: 0,
+        name: 'Void Pulse',
+        description: 'Teleport to safety and unleash a screen-clearing reality wave.'
+    },
+    droneSupport: {
+        cooldown: 40000,
+        duration: 15000, // Drones last for 15 seconds
+        lastUsed: -Infinity,
+        active: false,
+        timer: 0,
+        name: 'Drone Support',
+        description: 'Deploys autonomous attack drones.'
     }
 };
-
-// Combo System (moved to global scope)
 
 // Player
 const player = {
@@ -417,11 +511,14 @@ let playerBullets = [];
 let enemyBullets = [];
 let enemies = [];
 let bossBullets = [];
+let playerHomingMissiles = [];
 let bossMissiles = [];
 let explosions = [];
+let friendlyDrones = [];
 let powerups = [];
 let boss = null;
 
+let waveParticles = []; // For the Void Pulse wave effect
 // Bonus round state
 let bonusRoundActive = false;
 let bonusRoundTimer = 0;
@@ -438,6 +535,9 @@ let mouseShooting = false;
 let mouseShootingX = 0;
 let mouseShootingY = 0;
 
+// Screen Shake effect state
+let screenShake = { intensity: 0, duration: 0, timer: 0 };
+
 // Keyboard controls
 function setupKeyboardControls() {
     document.addEventListener('keydown', keyboardDownHandler);
@@ -453,9 +553,11 @@ function keyboardDownHandler(e) {
         e.preventDefault();
         player.shooting = true;
     }
-    if (e.key === '1') activateBeam();
-    if (e.key === '2') activateGaze();
-    if (e.key === '3') activateNova();
+    // Activate special moves based on the current ship
+    const currentShip = ships[playerShipId];
+    if (e.key === '1') activateSpecialMove(currentShip.specialMoveIds[0]);
+    if (e.key === '2') activateSpecialMove(currentShip.specialMoveIds[1]);
+    if (e.key === '3') activateSpecialMove(currentShip.specialMoveIds[2]);
 }
 function keyboardUpHandler(e) {
     keys[e.key.toLowerCase()] = false;
@@ -612,22 +714,25 @@ function setupMobileButtons() {
     
     if (beamBtn) {
         beamBtn.addEventListener('touchstart', (e) => {
+            const currentShip = ships[playerShipId];
             e.preventDefault();
-            activateBeam();
+            activateSpecialMove(currentShip.specialMoveIds[0]);
         });
     }
     
     if (gazeBtn) {
         gazeBtn.addEventListener('touchstart', (e) => {
+            const currentShip = ships[playerShipId];
             e.preventDefault();
-            activateGaze();
+            activateSpecialMove(currentShip.specialMoveIds[1]);
         });
     }
     
     if (novaBtn) {
         novaBtn.addEventListener('touchstart', (e) => {
+            const currentShip = ships[playerShipId];
             e.preventDefault();
-            activateNova();
+            activateSpecialMove(currentShip.specialMoveIds[2]);
         });
     }
 }
@@ -661,6 +766,8 @@ function restartGame() {
     enemyBullets = [];
     enemies = [];
     bossBullets = [];
+    friendlyDrones = [];
+    playerHomingMissiles = [];
     bossMissiles = [];
     explosions = [];
     boss = null;
@@ -696,45 +803,28 @@ function updateHealthBar() {
 }
 
 function updateSpecialUI() {
-    // Get references to UI elements
-    const beamCooldown = document.getElementById('beamCooldown');
-    const gazeCooldown = document.getElementById('gazeCooldown');
-    const novaCooldown = document.getElementById('novaCooldown');
-    const beamMove = document.getElementById('beamMove');
-    const gazeMove = document.getElementById('gazeMove');
-    const novaMove = document.getElementById('novaMove');
+    const currentShip = ships[playerShipId];
+    if (!currentShip) return;
+    const moveIds = currentShip.specialMoveIds;
+    const moveDivs = [document.getElementById('specialMove1'), document.getElementById('specialMove2'), document.getElementById('specialMove3')];
 
-    // Update Beam UI
-    if (specialMoves.beam.active) {
-        beamCooldown.textContent = 'Active!';
-        beamMove.classList.add('active');
-    } else {
-        const beamCD = Math.ceil((specialMoves.beam.lastUsed + specialMoves.beam.cooldown - Date.now()) / 1000);
-        beamCooldown.textContent = beamCD > 0 ? `${beamCD}s` : 'Ready';
-        beamMove.classList.toggle('on-cooldown', beamCD > 0);
-        beamMove.classList.remove('active');
-    }
+    for (let i = 0; i < 3; i++) {
+        const moveId = moveIds[i];
+        const move = specialMoves[moveId];
+        const div = moveDivs[i];
+        if (!div) continue;
+        const cooldownDiv = document.getElementById(`specialCooldown${i + 1}`);
 
-    // Update Gaze UI
-    if (specialMoves.gaze.active) {
-        gazeCooldown.textContent = 'Active!';
-        gazeMove.classList.add('active');
-    } else {
-        const gazeCD = Math.ceil((specialMoves.gaze.lastUsed + specialMoves.gaze.cooldown - Date.now()) / 1000);
-        gazeCooldown.textContent = gazeCD > 0 ? `${gazeCD}s` : 'Ready';
-        gazeMove.classList.toggle('on-cooldown', gazeCD > 0);
-        gazeMove.classList.remove('active');
-    }
-
-    // Update Nova UI
-    if (specialMoves.nova.active) {
-        novaCooldown.textContent = 'Active!';
-        novaMove.classList.add('active');
-    } else {
-        const novaCD = Math.ceil((specialMoves.nova.lastUsed + specialMoves.nova.cooldown - Date.now()) / 1000);
-        novaCooldown.textContent = novaCD > 0 ? `${novaCD}s` : 'Ready';
-        novaMove.classList.toggle('on-cooldown', novaCD > 0);
-        novaMove.classList.remove('active');
+        if (move.active) {
+            cooldownDiv.textContent = 'Active!';
+            div.classList.add('active');
+        } else {
+            const now = Date.now();
+            const cd = Math.max(0, Math.ceil((move.lastUsed + move.cooldown - now) / 1000));
+            cooldownDiv.textContent = cd > 0 ? `${cd}s` : 'Ready';
+            div.classList.toggle('on-cooldown', cd > 0);
+            div.classList.remove('active');
+        }
     }
 }
 
@@ -830,6 +920,124 @@ function shootPlayerBullet() {
     });
 }
 
+function drawPlayerShip1(p) {
+    ctx.save();
+    // Engine glow effect (behind ship)
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = 20;
+    const glowIntensity = 0.7 + 0.3 * Math.sin(Date.now() / 100);
+    ctx.globalAlpha = glowIntensity;
+    // Engine flames
+    const flameHeight = 15 + 5 * Math.sin(Date.now() / 80);
+    const gradient = ctx.createLinearGradient(0, p.y + p.height / 2, 0, p.y + p.height / 2 + flameHeight);
+    gradient.addColorStop(0, '#00ffff');
+    gradient.addColorStop(0.5, '#0088ff');
+    gradient.addColorStop(1, 'rgba(0, 136, 255, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(p.x - 8, p.y + p.height / 2, 16, flameHeight);
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    // Main ship body with gradient
+    const bodyGradient = ctx.createLinearGradient(0, p.y - p.height / 2, 0, p.y + p.height / 2);
+    bodyGradient.addColorStop(0, '#ffffff'); bodyGradient.addColorStop(0.3, '#00ffff'); bodyGradient.addColorStop(0.7, '#0088ff'); bodyGradient.addColorStop(1, '#004488');
+    ctx.fillStyle = bodyGradient;
+    // Ship hull (sleek design)
+    ctx.beginPath(); ctx.moveTo(p.x, p.y - p.height / 2); ctx.lineTo(p.x - p.width / 3, p.y); ctx.lineTo(p.x - p.width / 2, p.y + p.height / 3); ctx.lineTo(p.x, p.y + p.height / 2); ctx.lineTo(p.x + p.width / 2, p.y + p.height / 3); ctx.lineTo(p.x + p.width / 3, p.y); ctx.closePath(); ctx.fill();
+    // Wing details
+    ctx.fillStyle = '#0066cc'; ctx.beginPath(); ctx.moveTo(p.x - p.width / 2 - 8, p.y + 5); ctx.lineTo(p.x - p.width / 2, p.y); ctx.lineTo(p.x - p.width / 2, p.y + 15); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(p.x + p.width / 2 + 8, p.y + 5); ctx.lineTo(p.x + p.width / 2, p.y); ctx.lineTo(p.x + p.width / 2, p.y + 15); ctx.closePath(); ctx.fill();
+    // Cockpit
+    ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(p.x, p.y - 5, 8, 0, Math.PI * 2); ctx.fill();
+    // Weapon hardpoints
+    ctx.shadowBlur = 0; ctx.fillStyle = '#ffff00'; ctx.fillRect(p.x - 15, p.y + 10, 4, 8); ctx.fillRect(p.x + 11, p.y + 10, 4, 8);
+    ctx.restore();
+}
+
+function drawPlayerShip2(p) {
+    ctx.save();
+    // Engine glow (more aggressive orange/red)
+    ctx.shadowColor = '#ff8c00'; ctx.shadowBlur = 22;
+    const glowIntensity = 0.7 + 0.3 * Math.sin(Date.now() / 90);
+    ctx.globalAlpha = glowIntensity;
+    // Engine flames
+    const flameHeight = 18 + 6 * Math.sin(Date.now() / 70);
+    const gradient = ctx.createLinearGradient(0, p.y + p.height / 2, 0, p.y + p.height / 2 + flameHeight);
+    gradient.addColorStop(0, '#ffdd00'); gradient.addColorStop(0.5, '#ff8c00'); gradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+    ctx.fillStyle = gradient;
+    ctx.beginPath(); ctx.moveTo(p.x - 10, p.y + p.height / 2); ctx.lineTo(p.x, p.y + p.height / 2 + flameHeight); ctx.lineTo(p.x + 10, p.y + p.height / 2); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    // Main ship body (darker, more angular)
+    const bodyGradient = ctx.createLinearGradient(0, p.y - p.height / 2, 0, p.y + p.height / 2);
+    bodyGradient.addColorStop(0, '#cccccc'); bodyGradient.addColorStop(0.5, '#888888'); bodyGradient.addColorStop(1, '#555555');
+    ctx.fillStyle = bodyGradient;
+    // Ship hull (aggressive, forward-swept wings)
+    ctx.beginPath(); ctx.moveTo(p.x, p.y - p.height / 2); ctx.lineTo(p.x - p.width / 2, p.y + p.height / 2); ctx.lineTo(p.x, p.y + p.height / 4); ctx.lineTo(p.x + p.width / 2, p.y + p.height / 2); ctx.closePath(); ctx.fill();
+    // Red accents
+    ctx.fillStyle = '#ff1744'; ctx.beginPath(); ctx.moveTo(p.x, p.y - 10); ctx.lineTo(p.x - 5, p.y + 5); ctx.lineTo(p.x + 5, p.y + 5); ctx.closePath(); ctx.fill();
+    // Cockpit
+    ctx.fillStyle = '#ff8c00'; ctx.shadowColor = '#ff8c00'; ctx.shadowBlur = 12; ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+}
+
+function drawPlayerShip3(p) { // Aegis Defender
+    ctx.save();
+    // Engine glow (stable blue)
+    ctx.shadowColor = '#2979ff'; ctx.shadowBlur = 25;
+    const glowIntensity = 0.8 + 0.2 * Math.sin(Date.now() / 120);
+    ctx.globalAlpha = glowIntensity;
+    // Engine flames
+    const flameHeight = 12 + 4 * Math.sin(Date.now() / 90);
+    const gradient = ctx.createLinearGradient(0, p.y + p.height / 2, 0, p.y + p.height / 2 + flameHeight);
+    gradient.addColorStop(0, '#82b1ff'); gradient.addColorStop(0.5, '#2979ff'); gradient.addColorStop(1, 'rgba(41, 121, 255, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(p.x - 12, p.y + p.height / 2, 24, flameHeight);
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    // Main ship body (bulkier, armored look)
+    const bodyGradient = ctx.createLinearGradient(0, p.y - p.height / 2, 0, p.y + p.height / 2);
+    bodyGradient.addColorStop(0, '#e0e0e0'); bodyGradient.addColorStop(0.5, '#9e9e9e'); bodyGradient.addColorStop(1, '#616161');
+    ctx.fillStyle = bodyGradient;
+    // Ship hull (wide, defensive posture)
+    ctx.beginPath(); ctx.moveTo(p.x, p.y - p.height / 2); ctx.lineTo(p.x - p.width / 2, p.y - 10); ctx.lineTo(p.x - p.width / 2, p.y + p.height / 2); ctx.lineTo(p.x + p.width / 2, p.y + p.height / 2); ctx.lineTo(p.x + p.width / 2, p.y - 10); ctx.closePath(); ctx.fill();
+    // Blue armor plating
+    ctx.fillStyle = '#2979ff'; ctx.fillRect(p.x - p.width / 2, p.y - 15, p.width, 10);
+    // Cockpit
+    ctx.fillStyle = '#00e5ff'; ctx.shadowColor = '#00e5ff'; ctx.shadowBlur = 15; ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+}
+
+function drawPlayerShip4(p) { // For Teleport Dash
+    ctx.save();
+    // Sharp, angular design
+    ctx.shadowColor = '#d500f9'; ctx.shadowBlur = 20;
+    // Body
+    const bodyGradient = ctx.createLinearGradient(0, p.y - p.height / 2, 0, p.y + p.height / 2);
+    bodyGradient.addColorStop(0, '#f3e5f5'); bodyGradient.addColorStop(0.5, '#ab47bc'); bodyGradient.addColorStop(1, '#4a148c');
+    ctx.fillStyle = bodyGradient;
+    ctx.beginPath(); ctx.moveTo(p.x, p.y - p.height / 2); ctx.lineTo(p.x - p.width / 2, p.y + p.height / 2); ctx.lineTo(p.x + p.width / 2, p.y + p.height / 2); ctx.closePath(); ctx.fill();
+    // Engine (subtle, as if powered by magic)
+    const glowIntensity = 0.5 + 0.5 * Math.sin(Date.now() / 80);
+    ctx.globalAlpha = glowIntensity;
+    ctx.fillStyle = '#e1bee7';
+    ctx.beginPath(); ctx.arc(p.x, p.y + p.height / 2, 10, 0, Math.PI, false); ctx.fill();
+    ctx.restore();
+}
+
+function drawPlayerShip5(p) { // For Drone Support
+    ctx.save();
+    // Utilitarian, carrier-like design
+    ctx.shadowColor = '#00e676'; ctx.shadowBlur = 20;
+    // Body
+    const bodyGradient = ctx.createLinearGradient(0, p.y - p.height / 2, 0, p.y + p.height / 2);
+    bodyGradient.addColorStop(0, '#a5d6a7'); bodyGradient.addColorStop(0.5, '#4caf50'); bodyGradient.addColorStop(1, '#1b5e20');
+    ctx.fillStyle = bodyGradient;
+    ctx.beginPath(); ctx.moveTo(p.x - p.width / 2, p.y - p.height / 4); ctx.lineTo(p.x + p.width / 2, p.y - p.height / 4); ctx.lineTo(p.x + p.width / 3, p.y + p.height / 2); ctx.lineTo(p.x - p.width / 3, p.y + p.height / 2); ctx.closePath(); ctx.fill();
+    // Cockpit
+    ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(p.x, p.y - 5, 8, 0, Math.PI * 2); ctx.fill();
+    // Drone bays
+    ctx.fillStyle = '#388e3c'; ctx.fillRect(p.x - 18, p.y + 10, 8, 12); ctx.fillRect(p.x + 10, p.y + 10, 8, 12);
+    ctx.restore();
+}
+
 function drawPowerups() {
     powerups.forEach(p => {
         ctx.save();
@@ -849,76 +1057,10 @@ function drawPowerups() {
 }
 
 function drawPlayer() {
-    ctx.save();
-    
-    // Engine glow effect (behind ship)
-    ctx.shadowColor = '#00ffff';
-    ctx.shadowBlur = 20;
-    const glowIntensity = 0.7 + 0.3 * Math.sin(Date.now() / 100);
-    ctx.globalAlpha = glowIntensity;
-    
-    // Engine flames
-    const flameHeight = 15 + 5 * Math.sin(Date.now() / 80);
-    const gradient = ctx.createLinearGradient(0, player.y + player.height / 2, 0, player.y + player.height / 2 + flameHeight);
-    gradient.addColorStop(0, '#00ffff');
-    gradient.addColorStop(0.5, '#0088ff');
-    gradient.addColorStop(1, 'rgba(0, 136, 255, 0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(player.x - 8, player.y + player.height / 2, 16, flameHeight);
-    
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
-    
-    // Main ship body with gradient
-    const bodyGradient = ctx.createLinearGradient(0, player.y - player.height / 2, 0, player.y + player.height / 2);
-    bodyGradient.addColorStop(0, '#ffffff');
-    bodyGradient.addColorStop(0.3, '#00ffff');
-    bodyGradient.addColorStop(0.7, '#0088ff');
-    bodyGradient.addColorStop(1, '#004488');
-    ctx.fillStyle = bodyGradient;
-    
-    // Ship hull (sleek design)
-    ctx.beginPath();
-    ctx.moveTo(player.x, player.y - player.height / 2);
-    ctx.lineTo(player.x - player.width / 3, player.y);
-    ctx.lineTo(player.x - player.width / 2, player.y + player.height / 3);
-    ctx.lineTo(player.x, player.y + player.height / 2);
-    ctx.lineTo(player.x + player.width / 2, player.y + player.height / 3);
-    ctx.lineTo(player.x + player.width / 3, player.y);
-    ctx.closePath();
-    ctx.fill();
-    
-    // Wing details
-    ctx.fillStyle = '#0066cc';
-    ctx.beginPath();
-    ctx.moveTo(player.x - player.width / 2 - 8, player.y + 5);
-    ctx.lineTo(player.x - player.width / 2, player.y);
-    ctx.lineTo(player.x - player.width / 2, player.y + 15);
-    ctx.closePath();
-    ctx.fill();
-    
-    ctx.beginPath();
-    ctx.moveTo(player.x + player.width / 2 + 8, player.y + 5);
-    ctx.lineTo(player.x + player.width / 2, player.y);
-    ctx.lineTo(player.x + player.width / 2, player.y + 15);
-    ctx.closePath();
-    ctx.fill();
-    
-    // Cockpit
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = '#ffffff';
-    ctx.shadowBlur = 10;
-    ctx.beginPath();
-    ctx.arc(player.x, player.y - 5, 8, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Weapon hardpoints
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = '#ffff00';
-    ctx.fillRect(player.x - 15, player.y + 10, 4, 8);
-    ctx.fillRect(player.x + 11, player.y + 10, 4, 8);
-    
-    ctx.restore();
+    const ship = ships[playerShipId];
+    if (ship && typeof ship.draw === 'function') {
+        ship.draw(player);
+    }
 }
 
 // Mobile touch control UI - Now using HTML controls instead of canvas drawing
@@ -932,17 +1074,18 @@ function drawMobileControls() {
 
 function updateMobileSpecialButtons() {
     const beamBtn = document.getElementById('beamBtn');
-    const gazeBtn = document.getElementById('gazeBtn');
-    const novaBtn = document.getElementById('novaBtn');
-    
-    if (beamBtn) {
-        beamBtn.classList.toggle('active', specialMoves.beam.active);
-    }
-    if (gazeBtn) {
-        gazeBtn.classList.toggle('active', specialMoves.gaze.active);
-    }
-    if (novaBtn) {
-        novaBtn.classList.toggle('active', specialMoves.nova.active);
+    const gazeBtn = document.getElementById('gazeBtn'); // Represents button 2
+    const novaBtn = document.getElementById('novaBtn'); // Represents button 3
+    const buttons = [beamBtn, gazeBtn, novaBtn];
+
+    const currentShip = ships[playerShipId];
+    if (!currentShip) return;
+
+    for (let i = 0; i < 3; i++) {
+        if (buttons[i]) {
+            const move = specialMoves[currentShip.specialMoveIds[i]];
+            buttons[i].classList.toggle('active', move.active);
+        }
     }
 }
 
@@ -971,6 +1114,7 @@ function doLevelTransition(nextLevel) {
     // Disable all player input
     removeKeyboardControls();
     removeMouseControls();
+    removeMobileControls();
     let originalControlMode = controlMode;
     controlMode = null;
     // Animate player ship to center, then up
@@ -1031,9 +1175,18 @@ function doLevelTransition(nextLevel) {
                                 controlMode = originalControlMode;
                                 if (controlMode === 'keyboard') {
                                     setupKeyboardControls();
-                                } else if (controlMode === 'mouse') {
+                                } else if (controlMode === 'mouse') { 
                                     setupMouseControls();
+                                } else if (controlMode === 'mobile') {
+                                    setupMobileControls();
                                 }
+
+                                // CRITICAL FIX: Restart the game loop
+                                lastFrameTime = Date.now(); // Reset delta time to prevent a huge jump
+                                if (animationFrameId === null) {
+                                    animationFrameId = requestAnimationFrame(gameLoop);
+                                }
+
                             }, 800);
                         }, 1200);
                     }, 800);
@@ -1064,6 +1217,8 @@ function startLevel() {
     bossMissiles = [];
     playerBullets = [];
     explosions = [];
+    playerHomingMissiles = [];
+    friendlyDrones = [];
     // Reset special moves
     Object.values(specialMoves).forEach(move => {
         move.active = false;
@@ -1443,37 +1598,103 @@ function updateBullets() {
             playerBullets.splice(i, 1);
         }
     }
+
+    // Slow down projectiles if temporal shield is active
+    const slowProjectiles = (projectiles, speedAttr) => {
+        if (specialMoves.energyShield.active) {
+            projectiles.forEach(p => {
+                const dist = Math.hypot(p.x - player.x, p.y - player.y);
+                if (dist < 200) { // Shield radius
+                    p.y += p[speedAttr] * 0.4; // Slow down
+                } else {
+                    p.y += p[speedAttr];
+                }
+            });
+        } else { projectiles.forEach(p => p.y += p[speedAttr]); }
+    };
+
+    // Player homing missiles vs enemies
+    for (let i = playerHomingMissiles.length - 1; i >= 0; i--) {
+        const missile = playerHomingMissiles[i];
+        let missileRemoved = false;
+        for (let j = enemies.length - 1; j >= 0; j--) {
+            const enemy = enemies[j];
+            if (checkCollision(missile, enemy)) {
+                createExplosion(enemy.x, enemy.y);
+                enemies.splice(j, 1);
+                enemiesKilled++;
+                score += bonusRoundActive ? 200 : 100;
+                credits += 15; updateCreditsDisplay();
+                registerKill();
+                playerHomingMissiles.splice(i, 1);
+                missileRemoved = true;
+                break;
+            }
+        }
+    }
     
     // Enemy bullets
-    for (let i = enemyBullets.length - 1; i >= 0; i--) {
-        const bullet = enemyBullets[i];
-        bullet.y += bullet.speed;
-        
-        if (bullet.y > canvas.height + bullet.height) {
-            enemyBullets.splice(i, 1);
-        }
-    }
+    slowProjectiles(enemyBullets, 'speed');
+    enemyBullets = enemyBullets.filter(b => b.y <= canvas.height + b.height);
     
     // Boss bullets
-    for (let i = bossBullets.length - 1; i >= 0; i--) {
-        const bullet = bossBullets[i];
-        bullet.x += bullet.speedX;
-        bullet.y += bullet.speedY;
-        
-        if (bullet.y > canvas.height + bullet.height || bullet.x < -bullet.width || bullet.x > canvas.width + bullet.width) {
-            bossBullets.splice(i, 1);
-        }
-    }
+    // Temporal shield doesn't slow horizontal movement, only vertical
+    bossBullets.forEach(b => { b.x += b.speedX; });
+    slowProjectiles(bossBullets, 'speedY');
+    bossBullets = bossBullets.filter(b => b.y <= canvas.height + b.height && b.x >= -b.width && b.x <= canvas.width + b.width);
     
     // Boss missiles
-    for (let i = bossMissiles.length - 1; i >= 0; i--) {
-        const missile = bossMissiles[i];
-        missile.x += missile.speedX;
-        missile.y += missile.speedY;
-        
-        if (missile.y > canvas.height + missile.height || missile.x < -missile.width || missile.x > canvas.width + missile.width) {
-            bossMissiles.splice(i, 1);
+    // Temporal shield doesn't slow horizontal movement, only vertical
+    bossMissiles.forEach(m => { m.x += m.speedX; });
+    slowProjectiles(bossMissiles, 'speedY');
+    bossMissiles = bossMissiles.filter(m => m.y <= canvas.height + m.height && m.x >= -m.width && m.x <= canvas.width + m.width);
+}
+
+function updateHomingMissiles() {
+    for (let i = playerHomingMissiles.length - 1; i >= 0; i--) {
+        const m = playerHomingMissiles[i];
+        m.life--;
+
+        // Remove if life expires or target is gone, and try to find a new target
+        if (m.life <= 0 || !m.target || m.target.health <= 0) {
+            m.target = findClosestEnemy(m.x, m.y); // Find a new target
+            if (!m.target || m.life <= 0) { // If no new target or life is up, remove missile
+                playerHomingMissiles.splice(i, 1);
+                continue;
+            }
         }
+        
+        // Homing logic
+        const dx = m.target.x - m.x;
+        const dy = m.target.y - m.y;
+        const targetAngle = Math.atan2(dy, dx);
+        let angleDiff = targetAngle - m.angle;
+        
+        while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+        while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+        
+        m.angle += Math.sign(angleDiff) * Math.min(m.turnSpeed, Math.abs(angleDiff));
+        
+        // Movement
+        m.x += Math.cos(m.angle) * m.speed;
+        m.y += Math.sin(m.angle) * m.speed;
+    }
+}
+
+function updateFriendlyDrones() {
+    for (let i = friendlyDrones.length - 1; i >= 0; i--) {
+        const drone = friendlyDrones[i];
+        drone.life--;
+        if (drone.life <= 0) {
+            createExplosion(drone.x, drone.y, 15);
+            friendlyDrones.splice(i, 1);
+            continue;
+        }
+        // Movement (lerp to position)
+        drone.x += (drone.targetX - drone.x) * 0.1;
+        drone.y += (drone.targetY - drone.y) * 0.1;
+        // Shooting
+        if (Date.now() - drone.lastShot > drone.shotCooldown) { shootDroneBullet(drone); drone.lastShot = Date.now(); }
     }
 }
 
@@ -1567,6 +1788,24 @@ function drawBullets() {
         ctx.restore();
     });
     
+    // Player Homing Missiles
+    playerHomingMissiles.forEach(m => {
+        ctx.save();
+        ctx.translate(m.x, m.y);
+        ctx.rotate(m.angle + Math.PI / 2); // Align with direction of travel
+        // Missile Body
+        const missileGradient = ctx.createLinearGradient(0, -m.height / 2, 0, m.height / 2);
+        missileGradient.addColorStop(0, '#ffeb3b');
+        missileGradient.addColorStop(1, '#ff8c00');
+        ctx.fillStyle = missileGradient;
+        ctx.beginPath();
+        ctx.moveTo(0, -m.height / 2); ctx.lineTo(-m.width / 2, m.height / 2); ctx.lineTo(m.width / 2, m.height / 2);
+        ctx.closePath(); ctx.fill();
+        // Thruster Glow
+        ctx.fillStyle = '#ff1744'; ctx.shadowColor = '#ff1744'; ctx.shadowBlur = 10;
+        ctx.fillRect(-m.width / 2, m.height / 2, m.width, 4);
+        ctx.restore();
+    });
     // Boss missiles
     bossMissiles.forEach(missile => {
         ctx.save();
@@ -1603,6 +1842,22 @@ function drawBullets() {
     });
 }
 
+function drawFriendlyDrones() {
+    friendlyDrones.forEach(drone => {
+        ctx.save();
+        ctx.shadowColor = '#00e676';
+        ctx.shadowBlur = 16;
+        ctx.beginPath();
+        ctx.arc(drone.x, drone.y, drone.width / 2, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#00e676';
+        ctx.stroke();
+        ctx.restore();
+    });
+}
+
 // Explosion effects
 function createExplosion(x, y, size = 20) {
     soundManager.play('explosion');
@@ -1633,12 +1888,79 @@ function drawExplosions() {
         
         ctx.save();
         ctx.globalAlpha = alpha;
-        ctx.fillStyle = `hsl(${30 + (1 - alpha) * 30}, 100%, 50%)`;
-        ctx.beginPath();
-        ctx.arc(explosion.x, explosion.y, size, 0, Math.PI * 2);
-        ctx.fill();
+        if (explosion.type === 'lightning') {
+            ctx.globalAlpha = alpha * 0.9;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = explosion.thickness;
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 15;
+            
+            ctx.beginPath();
+            ctx.moveTo(explosion.startX, explosion.startY);
+            
+            const dx = explosion.endX - explosion.startX;
+            const dy = explosion.endY - explosion.startY;
+            const distance = Math.hypot(dx, dy);
+            const segments = Math.max(5, Math.floor(distance / 20));
+
+            for (let i = 1; i <= segments; i++) {
+                const progress = i / segments;
+                const midX = explosion.startX + dx * progress + (Math.random() - 0.5) * 20;
+                const midY = explosion.startY + dy * progress + (Math.random() - 0.5) * 20;
+                ctx.lineTo(midX, midY);
+            }
+            ctx.stroke();
+
+        } else if (explosion.type === 'teleport_out') {
+            // Imploding purple particles
+            ctx.fillStyle = '#ab47bc';
+            ctx.shadowColor = '#f3e5f5';
+            ctx.shadowBlur = 20;
+            for (let i = 0; i < 20; i++) {
+                const angle = (i / 20) * Math.PI * 2;
+                const dist = size * alpha; // Particles move inwards
+                ctx.beginPath();
+                ctx.arc(explosion.x + Math.cos(angle) * dist, explosion.y + Math.sin(angle) * dist, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        } else if (explosion.type === 'teleport_in' || explosion.type === 'disintegration') {
+            // Exploding purple particles (disintegration is just a cosmetic name for the same effect)
+            ctx.fillStyle = '#d500f9';
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 15;
+            for (let i = 0; i < 20; i++) {
+                const angle = (i / 20) * Math.PI * 2;
+                const dist = size * (1 - alpha); // Particles move outwards
+                ctx.beginPath();
+                ctx.arc(explosion.x + Math.cos(angle) * dist, explosion.y + Math.sin(angle) * dist, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        } else { // Regular explosion
+            ctx.globalAlpha = alpha;
+            
+            ctx.fillStyle = `hsl(${30 + (1 - alpha) * 30}, 100%, 50%)`;
+            ctx.beginPath();
+            ctx.arc(explosion.x, explosion.y, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
         ctx.restore();
     });
+}
+
+function updateAndDrawWaveParticles() {
+    for (let i = waveParticles.length - 1; i >= 0; i--) {
+        const p = waveParticles[i];
+        p.life--;
+        if (p.life <= 0) {
+            waveParticles.splice(i, 1);
+            continue;
+        }
+        p.x += p.vx;
+        p.y += p.vy;
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life / 50; // Fade out
+        ctx.fillRect(p.x, p.y, p.size, p.size);
+    }
 }
 
 // Collision detection helper function
@@ -1706,7 +2028,7 @@ function checkCollisions() {
         if (bulletRemoved) continue;
         // Check boss collision (unchanged)
         if (boss && checkCollision(bullet, boss)) {
-            boss.health -= (comboActive ? 15 : 10);
+            boss.health -= (comboActive ? 15 : 10); // Apply combo damage
             playerBullets.splice(i, 1);
             updateBossHealth();
             if (boss.health <= 0) {
@@ -1724,11 +2046,7 @@ function checkCollisions() {
                     setTimeout(() => {
                         startBonusRound();
                         setTimeout(() => {
-                            endBonusRound();
-                            setTimeout(() => {
-                                doLevelTransition(level + 1);
-                                currentEnemyColor = getRandomEnemyColor();
-                            }, 800);
+                            endBonusRound(); // This will now handle the next step
                         }, 20000);
                     }, 800);
                 } else {
@@ -1744,6 +2062,12 @@ function checkCollisions() {
     for (let i = enemyBullets.length - 1; i >= 0; i--) {
         const bullet = enemyBullets[i];
         if (checkCollision(bullet, player)) {
+            if (specialMoves.energyShield.active || (player.invincibleUntil && Date.now() < player.invincibleUntil)) {
+                // Shield deflects bullet
+                createExplosion(bullet.x, bullet.y, 5);
+                enemyBullets.splice(i, 1);
+                continue;
+            }
             if (!bonusRoundActive) {
                 soundManager.play('playerHit');
                 let damage = bullet.damage;
@@ -1763,6 +2087,12 @@ function checkCollisions() {
     for (let i = bossBullets.length - 1; i >= 0; i--) {
         const bullet = bossBullets[i];
         if (checkCollision(bullet, player)) {
+            if (specialMoves.energyShield.active || (player.invincibleUntil && Date.now() < player.invincibleUntil)) {
+                // Shield deflects bullet
+                createExplosion(bullet.x, bullet.y, 5);
+                bossBullets.splice(i, 1);
+                continue;
+            }
             if (!bonusRoundActive) {
                 soundManager.play('playerHit');
                 let damage = bullet.damage;
@@ -1782,6 +2112,12 @@ function checkCollisions() {
     for (let i = bossMissiles.length - 1; i >= 0; i--) {
         const missile = bossMissiles[i];
         if (checkCollision(missile, player)) {
+            if (specialMoves.energyShield.active || (player.invincibleUntil && Date.now() < player.invincibleUntil)) {
+                // Shield deflects missile
+                createExplosion(missile.x, missile.y, 10);
+                bossMissiles.splice(i, 1);
+                continue;
+            }
             if (!bonusRoundActive) {
                 soundManager.play('playerHit');
                 let damage = missile.damage;
@@ -1803,78 +2139,144 @@ function checkCollisions() {
 // Special moves state is already defined at the top of the file
 
 // --- SPECIAL MOVES UI ---
+function findClosestEnemy(x, y) {
+    let closestEnemy = null;
+    let minDistance = Infinity;
+
+    // Check regular enemies
+    enemies.forEach(enemy => {
+        if (!enemy.health || enemy.health <= 0) return;
+        const distance = Math.hypot(x - enemy.x, y - enemy.y);
+        if (distance < minDistance) {
+            minDistance = distance;
+            closestEnemy = enemy;
+        }
+    });
+
+    // If boss is present and closer, target it
+    if (boss && boss.health > 0) {
+        const distance = Math.hypot(x - boss.x, y - boss.y);
+        if (distance < minDistance) {
+            closestEnemy = boss;
+        }
+    }
+    return closestEnemy;
+}
+
 const beamMoveDiv = document.getElementById('beamMove');
 const gazeMoveDiv = document.getElementById('gazeMove');
 const novaMoveDiv = document.getElementById('novaMove');
 const beamCooldownDiv = document.getElementById('beamCooldown');
-const gazeCooldownDiv = document.getElementById('gazeCooldown');
-const novaCooldownDiv = document.getElementById('novaCooldown');
-
-function updateSpecialUI() {
-    // Beam
-    let now = Date.now();
-    let ready = now - specialMoves.beam.lastUsed >= specialMoves.beam.cooldown;
-    let cd = Math.max(0, specialMoves.beam.cooldown - (now - specialMoves.beam.lastUsed));
-    beamCooldownDiv.textContent = specialMoves.beam.active ? 'Active!' : (ready ? 'Ready' : (cd/1000).toFixed(1)+'s');
-    beamMoveDiv.classList.toggle('active', specialMoves.beam.active);
-    // Gaze
-    ready = now - specialMoves.gaze.lastUsed >= specialMoves.gaze.cooldown;
-    cd = Math.max(0, specialMoves.gaze.cooldown - (now - specialMoves.gaze.lastUsed));
-    gazeCooldownDiv.textContent = specialMoves.gaze.active ? 'Active!' : (ready ? 'Ready' : (cd/1000).toFixed(1)+'s');
-    gazeMoveDiv.classList.toggle('active', specialMoves.gaze.active);
-    // Nova
-    ready = now - specialMoves.nova.lastUsed >= specialMoves.nova.cooldown;
-    cd = Math.max(0, specialMoves.nova.cooldown - (now - specialMoves.nova.lastUsed));
-    novaCooldownDiv.textContent = specialMoves.nova.active ? 'Active!' : (ready ? 'Ready' : (cd/1000).toFixed(1)+'s');
-    novaMoveDiv.classList.toggle('active', specialMoves.nova.active);
-}
 
 // --- SPECIAL MOVES ACTIVATION ---
 document.addEventListener('keydown', function(e) {
     if (e.repeat) return;
     if (controlModal.style.display !== 'none') return;
-    if (e.key === '1') activateBeam();
-    if (e.key === '2') activateGaze();
-    if (e.key === '3') activateNova();
+    const currentShip = ships[playerShipId];
+    if (e.key === '1') activateSpecialMove(currentShip.specialMoveIds[0], e.key);
+    if (e.key === '2') activateSpecialMove(currentShip.specialMoveIds[1], e.key);
+    if (e.key === '3') activateSpecialMove(currentShip.specialMoveIds[2], e.key);
 });
 
-function activateBeam() {
-    let now = Date.now();
-    if (now - specialMoves.beam.lastUsed < specialMoves.beam.cooldown || specialMoves.beam.active) return;
-    soundManager.play('beam');
-    specialMoves.beam.active = true;
-    specialMoves.beam.timer = specialMoves.beam.duration;
-    specialMoves.beam.lastUsed = now;
+function triggerScreenShake(intensity, duration) {
+    // Don't override a stronger shake
+    if (screenShake.intensity > intensity) return;
+    screenShake.intensity = intensity;
+    screenShake.duration = duration;
+    screenShake.timer = duration;
 }
-function activateGaze() {
+function activateSpecialMove(moveId, key) {
     let now = Date.now();
-    if (now - specialMoves.gaze.lastUsed < specialMoves.gaze.cooldown || specialMoves.gaze.active) return;
-    specialMoves.gaze.active = true;
-    specialMoves.gaze.timer = specialMoves.gaze.duration;
-    specialMoves.gaze.lastUsed = now;
+    const move = specialMoves[moveId];
+    if (now - move.lastUsed < move.cooldown || move.active) return;
+
+    soundManager.play(moveId); // Assumes sound name matches moveId
+
+    if (moveId === 'teleportDash') {
+        // Create a teleport-out visual effect at the player's old position
+        createExplosion(player.x, player.y, 40, 'teleport_out');
+        // Teleport player to bottom-middle
+        player.x = canvas.width / 2;
+        player.y = canvas.height - 80;
+        // The wave effect will be handled in updateSpecialMoves
+        // Create a teleport-in visual effect and start the screen shake
+        createExplosion(player.x, player.y, 50, 'teleport_in');
+        triggerScreenShake(6, 1500); // Shake the screen for the duration of the pulse
+    } else if (moveId === 'droneSupport') {
+        // Spawn two drones
+        friendlyDrones.push({ x: player.x - 50, y: player.y, width: 20, height: 20, targetX: player.x - 50, targetY: player.y, life: move.duration / (1000/60), lastShot: 0, shotCooldown: 500 });
+        friendlyDrones.push({ x: player.x + 50, y: player.y, width: 20, height: 20, targetX: player.x + 50, targetY: player.y, life: move.duration / (1000/60), lastShot: 0, shotCooldown: 500 });
+    }
+
+    move.active = true;
+    move.timer = move.duration;
+    move.lastUsed = now;
+
+    // Handle instant-effect moves that don't need an 'active' state
+    if (moveId === 'missileStrike') {
+        const targets = [...enemies]; // Target all on-screen enemies
+        if (boss) {
+            targets.push(boss); // And the boss
+        }
+        if (targets.length === 0) {
+            move.lastUsed = -Infinity; // Refund cooldown if no targets
+            return; 
+        }
+        targets.forEach((target, i) => {
+            setTimeout(() => {
+                if (!gameRunning || !target || target.health <= 0) return;
+                soundManager.play('missileLaunch');
+                playerHomingMissiles.push({
+                    x: player.x + (i % 2 === 0 ? -20 : 20), y: player.y, 
+                    width: 10, height: 22, speed: 5, turnSpeed: 0.04, 
+                    life: 240, target: target, angle: -Math.PI / 2, damage: 50
+                });
+            }, i * 100);
+        });
+        // This move is instant, so we don't set it to active.
+        // We set lastUsed at the top, and that's it.
+        move.active = false; 
+        return;
+    }
 }
-function activateNova() {
-    let now = Date.now();
-    if (now - specialMoves.nova.lastUsed < specialMoves.nova.cooldown || specialMoves.nova.active) return;
-    soundManager.play('nova');
-    specialMoves.nova.active = true;
-    specialMoves.nova.timer = specialMoves.nova.duration;
-    specialMoves.nova.lastUsed = now;
-    // Nova effect: push enemies, stun boss, destroy projectiles
-    // Push enemies
-    enemies.forEach(enemy => {
-        enemy.y -= 100;
-        if (enemy.y < 0) enemy.y = 0;
-    });
-    // Stun boss
-    if (boss) boss.stunnedUntil = Date.now() + 2000;
-    // Destroy projectiles near player
-    const px = player.x, py = player.y;
-    enemyBullets = enemyBullets.filter(b => Math.hypot(b.x-px, b.y-py) > 120);
-    bossBullets = bossBullets.filter(b => Math.hypot(b.x-px, b.y-py) > 120);
-    bossMissiles = bossMissiles.filter(b => Math.hypot(b.x-px, b.y-py) > 120);
-    createExplosion(player.x, player.y, 60);
+
+function activateBeam() { activateSpecialMove('beam'); }
+function activateGaze() { activateSpecialMove('gaze'); }
+function activatePlasmaWave() {
+    // This now just activates the move. The effect happens at the end of the animation.
+    activateSpecialMove('plasmaWave');
 }
+
+/*
+// This is the old Plasma Wave logic, which is now replaced by the function above.
+// I'm keeping it here commented out just in case you want to reference it.
+function activatePlasmaWave_OLD() {
+    activateSpecialMove('plasmaWave');
+    if (boss) {
+        const distance = Math.hypot(player.x - boss.x, player.y - boss.y);
+        if (distance < radius + boss.width) { // A more generous radius for the boss
+            // Damage is 30% at level 1, decreasing by 1% per level, min 15%
+            const damagePercent = Math.max(0.15, 0.30 - (level - 1) * 0.01);
+            const damage = boss.maxHealth * damagePercent;
+            boss.health -= damage;
+            updateBossHealth();
+            // Add a visual indicator for the damage
+            createExplosion(boss.x, boss.y, 40);
+            if (boss.health <= 0) {
+                // Handle boss defeat logic
+                createExplosion(boss.x, boss.y, 60);
+                boss = null;
+                bossDefeated = true;
+                document.getElementById('bossHealth').style.display = 'none';
+                score += 1000;
+                soundManager.play('bossDefeat');
+                bossBullets = [];
+                bossMissiles = [];
+            }
+        }
+    }
+}
+*/
 
 // --- SPECIAL MOVES EFFECTS IN GAMELOOP ---
 function updateSpecialMoves(dt) {
@@ -1977,7 +2379,7 @@ function updateSpecialMoves(dt) {
         specialMoves.gaze.timer -= dt;
         // Emit wave projectiles
         if (!specialMoves.gaze._lastFire || Date.now() - specialMoves.gaze._lastFire > 80) {
-            for (let angle = -40; angle <= 40; angle += 20) { // was -60 to 60
+            for (let angle = -40; angle <= 40; angle += 20) {
                 let rad = angle * Math.PI / 180;
                 playerBullets.push({
                     x: player.x,
@@ -1986,8 +2388,8 @@ function updateSpecialMoves(dt) {
                     height: 12,
                     speed: 10,
                     damage: 10,
-                    vx: Math.sin(rad)*4, // was 7
-                    vy: -Math.cos(rad)*6, // was 10
+                    vx: Math.sin(rad) * 4,
+                    vy: -Math.cos(rad) * 6,
                     special: 'gaze'
                 });
             }
@@ -1997,22 +2399,187 @@ function updateSpecialMoves(dt) {
             specialMoves.gaze.active = false;
         }
     }
-    // Nova Pulse
-    if (specialMoves.nova.active) {
-        specialMoves.nova.timer -= dt;
-        // Draw pulse
+    // Plasma Wave
+    if (specialMoves.plasmaWave.active) {
+        specialMoves.plasmaWave.timer -= dt;
+        
+        const move = specialMoves.plasmaWave;
+        const progress = 1 - (move.timer / move.duration); // Goes from 0 to 1
+
+        // --- Part 1: Charging animation around the ship ---
         ctx.save();
-        ctx.globalAlpha = 0.5 + 0.5*Math.sin(Date.now()/80);
+        const radius = 20 + 40 * progress; // Sphere grows as it charges
+        const alpha = 0.5 + 0.5 * progress;
+        ctx.globalAlpha = alpha;
+        ctx.shadowColor = '#00ffff';
+        ctx.shadowBlur = 30;
+
+        // Draw a crackling energy ball
+        const gradient = ctx.createRadialGradient(player.x, player.y, 0, player.x, player.y, radius);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+        gradient.addColorStop(0.6, 'rgba(0, 255, 255, 0.6)');
+        gradient.addColorStop(1, 'rgba(0, 128, 255, 0.3)');
+        ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.arc(player.x, player.y, 120, 0, Math.PI*2);
-        ctx.strokeStyle = '#fff176';
-        ctx.lineWidth = 10 + 4*Math.sin(Date.now()/120);
-        ctx.stroke();
+        ctx.arc(player.x, player.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw small lightning arcs flickering around the sphere
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < 5; i++) {
+            ctx.beginPath();
+            ctx.moveTo(player.x, player.y);
+            let angle = Math.random() * Math.PI * 2;
+            let endX = player.x + Math.cos(angle) * (radius + 5 + Math.random() * 10);
+            let endY = player.y + Math.sin(angle) * (radius + 5 + Math.random() * 10);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+        }
         ctx.restore();
-        if (specialMoves.nova.timer <= 0) {
-            specialMoves.nova.active = false;
+
+        // --- Part 2: When timer ends, unleash the lightning! ---
+        if (move.timer <= 0) {
+            move.active = false; // End the move
+
+            // 1. Destroy ALL enemies on screen with lightning bolts
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                createLightningBolt(player.x, player.y, enemy.x, enemy.y);
+                createExplosion(enemy.x, enemy.y, 30);
+                score += 100;
+                registerKill();
+            }
+            enemies = [];
+
+            // 2. Damage boss with a big lightning bolt
+            if (boss) {
+                createLightningBolt(player.x, player.y, boss.x, boss.y, 5); // Thicker bolt for boss
+                const damagePercent = Math.max(0.15, 0.30 - (level - 1) * 0.01);
+                const damage = boss.maxHealth * damagePercent;
+                boss.health -= damage;
+                updateBossHealth();
+                createExplosion(boss.x, boss.y, 40);
+                if (boss.health <= 0) {
+                    createExplosion(boss.x, boss.y, 60);
+                    boss = null;
+                    bossDefeated = true;
+                    document.getElementById('bossHealth').style.display = 'none';
+                    score += 1000;
+                    soundManager.play('bossDefeat');
+                    bossBullets = [];
+                    bossMissiles = [];
+                }
+            }
+
+            // 3. Clear all bullets on screen
+            enemyBullets = [];
+            bossBullets = [];
+            bossMissiles = [];
         }
     }
+    // Energy Shield
+    if (specialMoves.energyShield.active) {
+        specialMoves.energyShield.timer -= dt;
+        if (specialMoves.energyShield.timer <= 0) {
+            specialMoves.energyShield.active = false;
+        }
+    }
+    // Teleport Dash
+    const voidPulse = specialMoves.teleportDash;
+    if (voidPulse.active) {
+        voidPulse.timer -= dt;
+        const progress = 1 - (voidPulse.timer / voidPulse.duration); // 0 to 1
+        const waveY = canvas.height - (canvas.height * progress);
+
+        // --- Draw the wave ---
+        ctx.save();
+        const waveHeight = 80; // How thick the wave front is
+        const waveFrontY = waveY - waveHeight / 2;
+
+        // Create a gradient for the main wave body
+        const gradient = ctx.createLinearGradient(0, waveFrontY, 0, waveFrontY + waveHeight);
+        gradient.addColorStop(0, 'rgba(171, 71, 188, 0)'); // Fade at the top
+        gradient.addColorStop(0.5, 'rgba(171, 71, 188, 0.7)'); // Core color
+        gradient.addColorStop(1, 'rgba(106, 27, 154, 0.5)'); // Darker trail
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, waveFrontY, canvas.width, waveHeight);
+
+        // Add a bright, crackling leading edge
+        ctx.shadowColor = '#f3e5f5';
+        ctx.shadowBlur = 20;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, waveY);
+        for (let x = 0; x < canvas.width; x += 20) {
+            ctx.lineTo(x, waveY + Math.sin(x / 50 + Date.now() / 100) * 10);
+            const mainWiggle = Math.sin(x / 50 + Date.now() / 100) * 10;
+            const fastWiggle = Math.sin(x / 15 + Date.now() / 60) * 4; // More chaotic crackle
+            ctx.lineTo(x, waveY + mainWiggle + fastWiggle);
+        }
+        ctx.stroke();
+        ctx.restore();
+
+        // --- Collision and destruction ---
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            const enemy = enemies[i];
+            if (enemy.y < waveY + 20) { // Check if enemy is behind the wave
+                createExplosion(enemy.x, enemy.y, 30);
+                createExplosion(enemy.x, enemy.y, 30, 'disintegration'); // New disintegration effect
+                enemies.splice(i, 1);
+                score += 100;
+                registerKill();
+            }
+        }
+
+        // Damage the boss if it's hit
+        if (boss && !boss.hitByVoidPulse && boss.y < waveY + 20) {
+            const damage = boss.maxHealth * 0.35; // 35% of max health
+            boss.health -= damage;
+            boss.hitByVoidPulse = true; // Flag to ensure it's only hit once per pulse
+            createExplosion(boss.x, boss.y, 60);
+            updateBossHealth();
+        }
+
+        if (voidPulse.timer <= 0) {
+            voidPulse.active = false;
+            if (boss) boss.hitByVoidPulse = false; // Reset flag for next use
+            waveParticles = []; // Clear any remaining particles
+        }
+
+        // Spawn new particles at the wave front
+        if (Math.random() > 0.4) {
+            waveParticles.push({
+                x: Math.random() * canvas.width,
+                y: waveY + (Math.random() - 0.5) * 20,
+                vy: -Math.random() * 2 - 1,
+                vx: (Math.random() - 0.5) * 2,
+                life: 40 + Math.random() * 40,
+                size: Math.random() * 3 + 1,
+                color: `rgba(234, 179, 255, ${Math.random() * 0.5 + 0.5})`
+            });
+        }
+    }
+    // Drone Support
+    if (specialMoves.droneSupport.active) {
+        specialMoves.droneSupport.timer -= dt;
+        if (specialMoves.droneSupport.timer <= 0) {
+            specialMoves.droneSupport.active = false;
+        }
+    }
+}
+
+function createLightningBolt(startX, startY, endX, endY, thickness = 2) {
+    // This function will draw a lightning bolt for a single frame.
+    // We'll add it to the explosions array to render it temporarily.
+    explosions.push({
+        x: startX, y: startY, // Not really used, but keeps object structure consistent
+        life: 10, // Lasts for 10 frames
+        maxLife: 10,
+        type: 'lightning',
+        startX, startY, endX, endY, thickness
+    });
 }
 
 // --- COMBO CHAIN SYSTEM ---
@@ -2061,6 +2628,7 @@ function endBonusRound() {
     bonusRoundActive = false;
     soundManager.playMusic('background');
     bonusBar.style.opacity = '0';
+    doLevelTransition(level + 1);
 }
 
 // --- DRONE ENEMY TYPE ---
@@ -2182,6 +2750,19 @@ function spawnBonusEnemy() {
     });
 }
 
+function shootDroneBullet(drone) {
+    const target = findClosestEnemy(drone.x, drone.y);
+    if (!target) return;
+    const dx = target.x - drone.x;
+    const dy = target.y - drone.y;
+    const dist = Math.hypot(dx, dy);
+    playerBullets.push({
+        x: drone.x, y: drone.y, width: 5, height: 5, damage: 8,
+        vx: (dx / dist) * 7,
+        vy: (dy / dist) * 7,
+        special: 'gaze' // Re-use gaze visuals for performance
+    });
+}
 // --- POWERUP SYSTEM ---
 let attackBoostStacks = 0;
 let defenseBoostStacks = 0;
@@ -2322,11 +2903,9 @@ if (
                     setTimeout(() => {
                         startBonusRound();
                         setTimeout(() => {
-                            endBonusRound();
-                            setTimeout(() => {
-                                doLevelTransition(level + 1);
-                                currentEnemyColor = getRandomEnemyColor();
-                            }, 800);
+                            // endBonusRound will now handle the next step
+                            // (either intermission or level transition)
+                            endBonusRound(); 
                         }, 20000);
                     }, 800);
                 } else {
@@ -2342,6 +2921,12 @@ if (
     for (let i = enemyBullets.length - 1; i >= 0; i--) {
         const bullet = enemyBullets[i];
         if (checkCollision(bullet, player)) {
+            if (specialMoves.energyShield.active) {
+                // Shield deflects bullet
+                createExplosion(bullet.x, bullet.y, 5);
+                enemyBullets.splice(i, 1);
+                continue;
+            }
             if (!bonusRoundActive) {
                 soundManager.play('playerHit');
                 let damage = bullet.damage;
@@ -2361,6 +2946,12 @@ if (
     for (let i = bossBullets.length - 1; i >= 0; i--) {
         const bullet = bossBullets[i];
         if (checkCollision(bullet, player)) {
+            if (specialMoves.energyShield.active) {
+                // Shield deflects bullet
+                createExplosion(bullet.x, bullet.y, 5);
+                bossBullets.splice(i, 1);
+                continue;
+            }
             if (!bonusRoundActive) {
                 soundManager.play('playerHit');
                 let damage = bullet.damage;
@@ -2380,6 +2971,12 @@ if (
     for (let i = bossMissiles.length - 1; i >= 0; i--) {
         const missile = bossMissiles[i];
         if (checkCollision(missile, player)) {
+            if (specialMoves.energyShield.active) {
+                // Shield deflects missile
+                createExplosion(missile.x, missile.y, 10);
+                bossMissiles.splice(i, 1);
+                continue;
+            }
             if (!bonusRoundActive) {
                 soundManager.play('playerHit');
                 let damage = missile.damage;
@@ -2395,6 +2992,55 @@ if (
             bossMissiles.splice(i, 1);
         }
     }
+
+    // Player homing missiles vs enemies/boss
+    for (let i = playerHomingMissiles.length - 1; i >= 0; i--) {
+        const missile = playerHomingMissiles[i];
+        let missileRemoved = false;
+
+        // Check against regular enemies
+        for (let j = enemies.length - 1; j >= 0; j--) {
+            const enemy = enemies[j];
+            // Skip collision check if missile just spawned inside the player
+            if (checkCollision(missile, player)) {
+                // This prevents the missile from instantly colliding with an enemy that is on top of the player
+                // A more robust solution might check the missile's age, but this is a simple and effective fix.
+                continue;
+            }
+            if (checkCollision(missile, enemy)) {
+                createExplosion(enemy.x, enemy.y, 40); // Big explosion
+                enemies.splice(j, 1);
+                score += 100;
+                registerKill();
+                playerHomingMissiles.splice(i, 1);
+                missileRemoved = true;
+                break;
+            }
+        }
+        if (missileRemoved) continue;
+
+        // Check against boss
+        if (boss && checkCollision(missile, boss)) {
+            // Skip collision check if missile just spawned inside the player
+            if (checkCollision(missile, player)) {
+                continue;
+            }
+
+            boss.health -= missile.damage || 50; // Use missile damage, or default
+            updateBossHealth();
+            createExplosion(missile.x, missile.y, 40); // Big explosion on boss
+            playerHomingMissiles.splice(i, 1);
+            
+            if (boss.health <= 0) {
+                createExplosion(boss.x, boss.y, 60);
+                boss = null;
+                bossDefeated = true;
+                document.getElementById('bossHealth').style.display = 'none';
+                score += 1000;
+                soundManager.play('bossDefeat');
+            }
+        }
+    }
 };
 
 // --- INTEGRATE INTO GAMELOOP ---
@@ -2405,6 +3051,16 @@ function gameLoop() {
     let now = Date.now();
     let dt = now - lastFrameTime;
     lastFrameTime = now;
+
+    // Apply screen shake if active
+    if (screenShake.timer > 0) {
+        screenShake.timer -= dt;
+        const shakeX = (Math.random() - 0.5) * screenShake.intensity * (screenShake.timer / screenShake.duration);
+        const shakeY = (Math.random() - 0.5) * screenShake.intensity * (screenShake.timer / screenShake.duration);
+        ctx.save();
+        ctx.translate(shakeX, shakeY);
+    }
+
     // Combo timer
     if (typeof comboActive !== 'undefined' && comboActive) {
         comboTimer -= dt;
@@ -2420,9 +3076,11 @@ function gameLoop() {
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     // Update game objects
+    updateFriendlyDrones();
     updatePlayer();
     updateEnemies();
     updateBullets();
+    updateHomingMissiles();
     updateExplosions();
     updatePowerups();
     if (typeof updateSpecialMoves !== 'undefined') updateSpecialMoves(dt);
@@ -2441,10 +3099,13 @@ function gameLoop() {
     // Draw everything
     drawPlayer();
     drawEnemies();
+    drawFriendlyDrones();
     drawBullets();
     drawExplosions();
+    updateAndDrawWaveParticles();
     drawPowerups();
     if (typeof boss !== 'undefined' && boss) drawBoss();
+    if (specialMoves.energyShield.active) drawTemporalShieldEffect();
     // Draw mobile controls (on top of everything)
     drawMobileControls();
     // Combo aura/trail
@@ -2464,6 +3125,12 @@ function gameLoop() {
     updateScore();
     updateSpecialUI();
     updateBoostBars();
+
+    // Restore from screen shake
+    if (screenShake.timer > 0) {
+        ctx.restore();
+    } else { screenShake.intensity = 0; }
+
     // Continue game loop
     animationFrameId = requestAnimationFrame(gameLoop);
 };
@@ -2474,6 +3141,93 @@ function updateHighScoreDisplay() {
         highScoreEl.textContent = `High Score: ${highScore}`;
     }
 }
+
+function drawTemporalShieldEffect() {
+    ctx.save();
+    const shieldRadius = 80;
+    const pulse = Math.sin(Date.now() / 200) * 5;
+    const gradient = ctx.createRadialGradient(player.x, player.y, 0, player.x, player.y, shieldRadius + pulse);
+    gradient.addColorStop(0, 'rgba(0, 229, 255, 0)');
+    gradient.addColorStop(0.7, 'rgba(0, 229, 255, 0.1)');
+    gradient.addColorStop(1, 'rgba(0, 229, 255, 0.5)');
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, shieldRadius + pulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.5 + Math.sin(Date.now() / 150) * 0.3})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+}
+
+// --- NEW SHIP SELECTION LOGIC ---
+const shipSelectScreen = document.getElementById('shipSelectScreen');
+
+function showShipSelector() {
+    populateShipSelector();
+    shipSelectScreen.style.display = 'flex';
+}
+
+function populateShipSelector() {
+    const grid = document.getElementById('shipGrid');
+    grid.innerHTML = '';
+    for (const shipId in ships) {
+        const ship = ships[shipId];
+        const card = document.createElement('div');
+        card.className = 'ship-card';
+        card.dataset.shipId = ship.id;
+
+        card.innerHTML = `
+            <canvas width="120" height="120" id="ship-canvas-${ship.id}"></canvas>
+            <h3>${ship.name}</h3>
+            <p>Unique Move: <span class="unique-move">${specialMoves[ship.specialMoveIds[2]].name}</span></p>
+        `;
+
+        grid.appendChild(card);
+
+        // Draw the ship preview on its little canvas
+        const shipCanvas = document.getElementById(`ship-canvas-${ship.id}`);
+        const shipCtx = shipCanvas.getContext('2d');
+        ctx = shipCtx; // Temporarily switch context for drawing function
+        ship.draw({ x: 60, y: 60, width: ship.width, height: ship.height });
+        ctx = canvas.getContext('2d'); // Switch back to main context
+    }
+}
+
+function updateShipUI() {
+    const currentShip = ships[playerShipId];
+    if (!currentShip) return;
+
+    const moveIds = currentShip.specialMoveIds;
+    const icons = { gaze: '💥', beam: '🔥', missileStrike: '🚀', plasmaWave: '💫', energyShield: '⏳', teleportDash: '🌀', droneSupport: '🛰️' };
+
+    for (let i = 0; i < 3; i++) {
+        const moveId = moveIds[i];
+        const move = specialMoves[moveId];
+        const div = document.getElementById(`specialMove${i + 1}`);
+        if (div) {
+            div.querySelector('.special-icon').textContent = icons[moveId] || '❔';
+            div.querySelector('.special-name').textContent = move.name;
+        }
+    }
+
+    // Update global controls info
+    const keybindsSpan = document.getElementById('specialMoveKeybinds');
+    if (keybindsSpan) {
+        keybindsSpan.textContent = `[1] ${specialMoves[moveIds[0]].name} [2] ${specialMoves[moveIds[1]].name} [3] ${specialMoves[moveIds[2]].name}`;
+    }
+}
+
+// Ship Definitions
+const ships = {
+    'ship1': { id: 'ship1', name: 'Interceptor', draw: drawPlayerShip1, width: 40, height: 60, specialMoveIds: ['gaze', 'beam', 'missileStrike'] },
+    'ship2': { id: 'ship2', name: 'Striker', draw: drawPlayerShip2, width: 45, height: 55, specialMoveIds: ['gaze', 'beam', 'plasmaWave'] },
+    'ship3': { id: 'ship3', name: 'Aegis', draw: drawPlayerShip3, width: 50, height: 50, specialMoveIds: ['gaze', 'beam', 'energyShield'] },
+    'ship4': { id: 'ship4', name: 'Phantom', draw: drawPlayerShip4, width: 40, height: 50, specialMoveIds: ['gaze', 'beam', 'teleportDash'] }, // teleportDash is now Void Pulse
+    'ship5': { id: 'ship5', name: 'Carrier', draw: drawPlayerShip5, width: 48, height: 52, specialMoveIds: ['gaze', 'beam', 'droneSupport'] },
+};
 
 // Make sure the control modal is visible when the page loads
 window.addEventListener('DOMContentLoaded', () => {
@@ -2490,18 +3244,43 @@ window.addEventListener('DOMContentLoaded', () => {
     restartBtn = document.getElementById('restartBtn');
     const muteBtn = document.getElementById('muteBtn'); // This was missing
 
-    // Initial display of high score
     updateHighScoreDisplay();
     
+    // Add a single, reliable event listener for the entire ship selection grid.
+    // This uses "event delegation" to handle clicks on any ship card.
+    const shipGrid = document.getElementById('shipGrid');
+    if (shipGrid) {
+        shipGrid.addEventListener('click', (event) => {
+            // Find the ship card that was clicked on, even if the user clicks an inner element like the text or canvas.
+            const card = event.target.closest('.ship-card');
+            if (!card) return; // Exit if the click was not on a card.
+
+            const selectedShipId = card.dataset.shipId;
+            const selectedShip = ships[selectedShipId];
+
+            if (selectedShip) {
+                playerShipId = selectedShipId;
+                player.width = selectedShip.width;
+                player.height = selectedShip.height;
+                shipSelectScreen.style.display = 'none';
+                updateShipUI();
+                restartGame();
+            }
+        });
+    }
+
     // Set up event listeners
     if (restartBtn) {
         restartBtn.addEventListener('click', () => {
-            restartGame();
+            // Restarting from game over should show control modal again
+            controlModal.style.display = 'flex';
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('restartBtn').style.display = 'none';
         });
     }
-    
+
     // Mute button logic
-    if (muteBtn) { // This was missing
+    if (muteBtn) {
         muteBtn.addEventListener('click', () => {
             const isMuted = soundManager.toggleMute();
             muteBtn.textContent = isMuted ? '🔇' : '🔊';
@@ -2512,8 +3291,7 @@ window.addEventListener('DOMContentLoaded', () => {
         keyboardBtn.addEventListener('click', () => {
             controlMode = 'keyboard';
             controlModal.style.display = 'none';
-            instructionsDiv.textContent = 'Use A/D or ←/→ to move | SPACE to shoot';
-            restartGame();
+            showShipSelector();
         });
     }
     
@@ -2521,8 +3299,7 @@ window.addEventListener('DOMContentLoaded', () => {
         mouseBtn.addEventListener('click', () => {
             controlMode = 'mouse';
             controlModal.style.display = 'none';
-            instructionsDiv.textContent = 'Move mouse to steer | Click or hold mouse to shoot';
-            restartGame();
+            showShipSelector();
         });
     }
     
@@ -2530,9 +3307,7 @@ window.addEventListener('DOMContentLoaded', () => {
         mobileBtn.addEventListener('click', () => {
             controlMode = 'mobile';
             controlModal.style.display = 'none';
-            instructionsDiv.textContent = 'Use joystick to move | Tap shoot button to fire | Tap special buttons for abilities';
-            setupMobileControls(); // This was in the wrong place
-            restartGame();
+            showShipSelector();
         });
     }
     
@@ -2543,14 +3318,9 @@ window.addEventListener('DOMContentLoaded', () => {
         if (controlModal) {
             controlModal.style.display = 'none';
         }
-        if (instructionsDiv) {
-            instructionsDiv.textContent = 'Use joystick to move | Tap shoot button to fire | Tap special buttons for abilities';
-        }
-        // Start game automatically on mobile
-        setTimeout(() => {
-            restartGame();
-        }, 500);
+        showShipSelector();
     } else if (controlModal) {
-        controlModal.style.display = 'block';
+        // On desktop, show the control selection modal
+        controlModal.style.display = 'flex';
     }
-});
+}); 
