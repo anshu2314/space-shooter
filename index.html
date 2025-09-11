@@ -2,9 +2,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script type='text/javascript' src='//pl27580014.revenuecpmgate.com/75/e9/55/75e955482a1f7ea3bb18ad1bf1b5fe8d.js'></script>
+      <script type='text/javascript' src='//pl27580014.revenuecpmgate.com/75/e9/55/75e955482a1f7ea3bb18ad1bf1b5fe8d.js'></script>
 	<script type='text/javascript' src='//pl27585276.revenuecpmgate.com/2e/66/da/2e66dae6dbd63c2fb4d2aab1e38f5f51.js'></script>
-	
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3388778007740454"
      crossorigin="anonymous"></script>
     <!-- Google tag (gtag.js) -->
@@ -36,7 +35,7 @@
 <meta name="twitter:image" content="https://space-shooter-x.onrender.com/assets/thumbnail.jpg">
 <link rel="canonical" href="https://space-shooter-x.onrender.com/" />
 <!-- ✅ Favicon for all browsers -->
-<link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+<link rel="icon" href="wall.png" type="image/png">
 
 <!-- Game Schema Markup (JSON-LD) -->
 <script type="application/ld+json">
@@ -49,6 +48,14 @@
   "author": {
     "@type": "Organization",
     "name": "ansh&abhi"  // <- Replace with your name/studio
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "ansh&abhi",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://space-shooter-x.onrender.com/wall.png"
+    }
   },
   "description": "A free-to-play, browser-based 2D space shooter. Survive endless waves of aliens, dodge enemy attacks, and use special powers like the Beam Attack, Gaze Burst, and Nova Pulse in this HTML5 arcade game.",
   "applicationCategory": "Game",
@@ -75,24 +82,6 @@
     <noscript>
   <a href="about.html">About Space Shooter X</a>
 </noscript>
-
-<!-- Articles Button -->
-<button id="articlesBtn" style="
-    position: fixed;
-    top: 15px;
-    right: 15px;
-    background-color: #ffd700;
-    color: black;
-    padding: 8px 12px;
-    font-size: 14px;
-    font-weight: bold;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    z-index: 9999;
-">
-    Articles
-</button>
 
 <!-- 3D Car Game Button -->
 <a href="car-game.html" title="Play 3D Car Racing Game" style="
@@ -135,6 +124,34 @@
     transition: transform 0.2s ease;">
     Highway Racer<div style="font-size: 20px; margin-top: 4px;">🚗</div>
 </a>
+
+<!-- Articles Button -->
+<button id="articlesBtn" style="
+    position: fixed;
+    top: 210px; /* Positioned below other buttons */
+    right: 15px;
+    background-color: #ffd700;
+    color: black;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: bold;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    z-index: 9996;
+">
+    Articles
+</button>
+
+<!-- Mute Button (Moved for global access) -->
+<button id="muteBtn" style="
+    position: fixed;
+    top: 260px; /* Positioned below Articles button */
+    right: 15px;
+    background: rgba(255, 255, 255, 0.2); border: 2px solid #fff; color: #fff; width: 40px; height: 40px; border-radius: 50%; font-size: 20px; cursor: pointer; z-index: 9995; backdrop-filter: blur(5px);
+">
+    🔊
+</button>
 
 <!-- Slide-out Articles Panel -->
 <div id="articlesPanel" style="
@@ -304,6 +321,59 @@
             z-index: 10;
         }
 
+        .interactive-ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 20; /* Above the non-interactive overlay */
+            pointer-events: none; /* Clicks pass through the container */
+        }
+        .interactive-ui > * {
+            pointer-events: auto; /* But buttons inside are clickable */
+        }
+
+        /* Ship Selection Screen Styles */
+        #shipSelectScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 20, 40, 0.95);
+            z-index: 100;
+            display: none; /* Initially hidden */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+            font-family: 'Orbitron', sans-serif;
+            animation: fadeIn 0.5s ease-out;
+        }
+        #shipSelectScreen h2 { color: #ffd700; font-size: 2.5rem; margin-bottom: 30px; text-shadow: 0 0 10px #ffd700; }
+        .ship-grid { display: flex; justify-content: center; gap: 25px; flex-wrap: wrap; }
+        .ship-card {
+            background: rgba(11, 15, 26, 0.9);
+            border: 3px solid #00ffff;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3), inset 0 0 15px rgba(0, 255, 255, 0.1);
+            padding: 25px;
+            width: 220px;
+            text-align: center;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .ship-card:hover {
+            transform: translateY(-10px) scale(1.05);
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.6), inset 0 0 20px rgba(0, 255, 255, 0.2);
+        }
+        .ship-card canvas { width: 120px; height: 120px; background: #0005; border-radius: 10px; margin-bottom: 15px; border: 1px solid #00ffff55; }
+        .ship-card h3 { color: #ffd700; margin-bottom: 8px; font-size: 1.4rem; }
+        .ship-card p { font-family: 'Exo 2', sans-serif; font-size: 1rem; color: #e0e0e0; }
+        .ship-card .unique-move { color: #00e5ff; font-weight: bold; }
+
         .health-bar {
             position: absolute;
             top: 20px;
@@ -381,7 +451,6 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
             transition: all 0.3s ease;
             display: none;
-            pointer-events: auto;
         }
 
         .restart-btn:hover {
@@ -1056,14 +1125,16 @@
                     <div class="health-fill" id="healthFill"></div>
                 </div>
                 <div class="score" id="score">Score: 0</div>
+                <div id="creditsDisplay" style="position: absolute; top: 85px; right: 20px; color: #ffd700; font-size: 18px; font-weight: bold; text-shadow: 1px 1px 2px #000;">Credits: 0</div>
                 <div id="highScoreDisplay" style="position: absolute; top: 50px; right: 20px; color: #ffd700; font-size: 18px; font-weight: bold; text-shadow: 1px 1px 2px #000;">High Score: 0</div>
-                <button id="muteBtn" style="position: absolute; top: 60px; right: 20px; background: rgba(255, 255, 255, 0.1); border: 2px solid #fff; color: #fff; width: 40px; height: 40px; border-radius: 50%; font-size: 20px; cursor: pointer; z-index: 20; backdrop-filter: blur(5px);">🔊</button>
                 <div class="boss-health" id="bossHealth">
                     <div class="boss-health-fill" id="bossHealthFill"></div>
                 </div>
                 <div class="game-over" id="gameOver">GAME OVER</div>
-                <button class="restart-btn" id="restartBtn">Restart Game</button>
                 <div class="instructions"></div>
+            </div>
+            <div class="interactive-ui">
+                <button class="restart-btn" id="restartBtn">Restart Game</button>
             </div>
             <div id="controlModal" style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(10,20,40,0.95);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:25vh;backdrop-filter:blur(5px);">
                 <div style="color:#fff;font-size:2.5rem;margin-bottom:40px;text-align:center;text-shadow:0 2px 4px rgba(0,0,0,0.5);font-weight:bold;transform:translateY(-30px);">Welcome To Our Space Shooting Game! How do you want to play?</div>
@@ -1111,9 +1182,9 @@
             <div class="action-buttons">
                 <button class="fire-btn" id="fireBtn">FIRE</button>
                 <div class="special-buttons">
-                    <button class="special-btn" id="beamBtn">1</button>
-                    <button class="special-btn" id="gazeBtn">2</button>
-                    <button class="special-btn" id="novaBtn">3</button>
+                    <button class="special-btn" id="specialBtn1">1</button>
+                    <button class="special-btn" id="specialBtn2">2</button>
+                    <button class="special-btn" id="specialBtn3">3</button>
                 </div>
             </div>
         </div>
@@ -1127,26 +1198,41 @@
                     <li>Defeat enemies, survive, and beat the boss!</li>
                 </ul>
             </div>
-            <div class="special-move-sidebar" id="beamMove">
-                <div class="special-icon">🔥</div>
-                <div class="special-name">Beam Attack</div>
-                <div class="special-cooldown" id="beamCooldown">Ready</div>
-            </div>
-            <div class="special-move-sidebar" id="gazeMove">
+            <div class="special-move-sidebar" id="specialMove1">
                 <div class="special-icon">💥</div>
                 <div class="special-name">Gaze Burst</div>
-                <div class="special-cooldown" id="gazeCooldown">Ready</div>
+                <div class="special-cooldown" id="specialCooldown1">Ready</div>
             </div>
-            <div class="special-move-sidebar" id="novaMove">
+            <div class="special-move-sidebar" id="specialMove2">
+                <div class="special-icon">🔥</div>
+                <div class="special-name">Beam Attack</div>
+                <div class="special-cooldown" id="specialCooldown2">Ready</div>
+            </div>
+            <div class="special-move-sidebar" id="specialMove3">
                 <div class="special-icon">💫</div>
-                <div class="special-name">Nova Pulse</div>
-                <div class="special-cooldown" id="novaCooldown">Ready</div>
+                <div class="special-name">Unique Move</div>
+                <div class="special-cooldown" id="specialCooldown3">Ready</div>
             </div>
         </div>
     </div>
     <div class="controls-info-global">
         <span class="controls-title">Controls:</span><br>
-        <span class="controls-keys">[1] Beam   [2] Gaze Burst   [3] Nova Pulse</span>
+        <span class="controls-keys" id="specialMoveKeybinds">[1] Gaze [2] Beam [3] Unique</span>
+    </div>
+
+    <!-- Ship Selection Screen -->
+    <div id="shipSelectScreen">
+        <h2>Choose Your Starfighter</h2>
+        <div class="ship-grid" id="shipGrid">
+            <!-- Ship cards will be dynamically generated by JavaScript -->
+            <!-- Example Card Structure:
+            <div class="ship-card" data-ship-id="ship1">
+                <canvas width="120" height="120"></canvas>
+                <h3>Orion Interceptor</h3>
+                <p>Unique Move: <span class="unique-move">Missile Strike</span></p>
+            </div>
+            -->
+        </div>
     </div>
 
     <!-- Visible SEO Content Section -->
