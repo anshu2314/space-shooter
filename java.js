@@ -628,9 +628,9 @@ function removeMobileControls() {
     
     // Remove button event listeners
     const fireBtn = document.getElementById('fireBtn');
-    const beamBtn = document.getElementById('beamBtn');
-    const gazeBtn = document.getElementById('gazeBtn');
-    const novaBtn = document.getElementById('novaBtn');
+    const beamBtn = document.getElementById('specialBtn1');
+    const gazeBtn = document.getElementById('specialBtn2');
+    const novaBtn = document.getElementById('specialBtn3');
     
     if (fireBtn) fireBtn.replaceWith(fireBtn.cloneNode(true));
     if (beamBtn) beamBtn.replaceWith(beamBtn.cloneNode(true));
@@ -694,9 +694,9 @@ function setupJoystick() {
 
 function setupMobileButtons() {
     const fireBtn = document.getElementById('fireBtn');
-    const beamBtn = document.getElementById('beamBtn');
-    const gazeBtn = document.getElementById('gazeBtn');
-    const novaBtn = document.getElementById('novaBtn');
+    const beamBtn = document.getElementById('specialBtn1');
+    const gazeBtn = document.getElementById('specialBtn2');
+    const novaBtn = document.getElementById('specialBtn3');
     
     if (fireBtn) {
         fireBtn.addEventListener('touchstart', (e) => {
@@ -1073,9 +1073,9 @@ function drawMobileControls() {
 }
 
 function updateMobileSpecialButtons() {
-    const beamBtn = document.getElementById('beamBtn');
-    const gazeBtn = document.getElementById('gazeBtn'); // Represents button 2
-    const novaBtn = document.getElementById('novaBtn'); // Represents button 3
+    const beamBtn = document.getElementById('specialBtn1');
+    const gazeBtn = document.getElementById('specialBtn2'); // Represents button 2
+    const novaBtn = document.getElementById('specialBtn3'); // Represents button 3
     const buttons = [beamBtn, gazeBtn, novaBtn];
 
     const currentShip = ships[playerShipId];
